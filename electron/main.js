@@ -10,7 +10,6 @@ const { evaluate: evalAchievements } = require('./achievements');
 const { detectSteamId, getGameAchievements, fetchPlayerAchievements, getSteamFriends } = require('./steam-achievements');
 const { DiscordRPC } = require('./discord-rpc');
 const { autoUpdater } = require('electron-updater');
-const { desktopCapturer } = require('electron');
 
 // FORCE data to %APPDATA%\Vaultix regardless of portable vs installed mode.
 // This is the critical fix: electron-builder portable can reset userData on re-extract.
@@ -197,15 +196,18 @@ async function takeScreenshot(gameId) {
     if (!id) return null;
     const gameDir = path.join(screenshotsDir, id);
     fs.mkdirSync(gameDir, { recursive: true });
-    const sources = await desktopCapturer.getSources({
-      types: ['screen'],
-      thumbnailSize: { width: 1920, height: 1080 },
-    });
-    if (!sources.length) return null;
-    const image = sources[0].thumbnail;
     const filename = `ss_${Date.now()}.png`;
     const filepath = path.join(gameDir, filename);
-    fs.writeFileSync(filepath, image.toPNG());
+    const ps = `Add-Type -AssemblyName System.Windows.Forms,System.Drawing;` +
+      `$s=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds;` +
+      `$b=New-Object Drawing.Bitmap($s.Width,$s.Height);` +
+      `$g=[Drawing.Graphics]::FromImage($b);` +
+      `$g.CopyFromScreen($s.Location,[Drawing.Point]::Empty,$s.Size);` +
+      `$b.Save('${filepath.replace(/'/g, "''")}');` +
+      `$g.Dispose();$b.Dispose()`;
+    await new Promise((resolve, reject) => {
+      exec(`powershell -NoProfile -Command "${ps}"`, { timeout: 5000 }, (err) => err ? reject(err) : resolve());
+    });
     send('screenshot-taken', { gameId: id, filename, path: filepath });
     showOverlay({ icon: '📸', name: 'Screenshot saved', desc: filename });
     return { ok: true, filename, path: filepath };
