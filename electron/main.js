@@ -1,6 +1,11 @@
 const { app, BrowserWindow, ipcMain, dialog, shell, Tray, Menu, globalShortcut, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
+
+const _logFile = path.join(process.env.APPDATA || '.', 'Vaultix', 'vaultix.log');
+function _log(msg) { try { fs.appendFileSync(_logFile, `[${new Date().toISOString()}] ${msg}\n`); } catch (e) {} }
+process.on('uncaughtException', (err) => { _log('UNCAUGHT: ' + (err.stack || err)); });
+process.on('unhandledRejection', (err) => { _log('UNHANDLED: ' + (err && err.stack || err)); });
 const { spawn, exec } = require('child_process');
 const { Store } = require('./store');
 const { scanSteamGames, readSteamPlaytime, findSteamRoot } = require('./steam');
@@ -49,7 +54,8 @@ const discord = new DiscordRPC();
 let screenshotHotkeyRegistered = false;
 
 // single instance
-if (!app.requestSingleInstanceLock()) { app.quit(); }
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) { app.quit(); }
 app.on('second-instance', () => showWindow());
 
 // ---------- tray icon (generated, no asset file needed) ----------
@@ -260,14 +266,12 @@ app.whenReady().then(() => {
   registerHotkey();
   applyAutoStart();
 
-  // count this launch, then evaluate achievements
   const st = store.appStats;
   st.opens = (st.opens || 0) + 1;
   if (!st.firstOpen) st.firstOpen = Date.now();
   store.appStats = st;
   setTimeout(checkAchievements, 1500);
 
-  // check for updates (silent, no prompts — installs on next quit)
   setTimeout(() => {
     try { autoUpdater.checkForUpdates(); } catch (e) { console.error('update check failed', e.message); }
   }, 5000);
