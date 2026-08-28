@@ -3,6 +3,7 @@ const path = require('path');
 
 const DEFAULT_SETTINGS = {
   background: '',
+  theme: 'default',
   accent: '#66c0f4',
   ollamaUrl: 'http://localhost:11434',
   ollamaModel: 'qwen2.5:3b',

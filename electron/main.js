@@ -255,8 +255,12 @@ autoUpdater.on('update-downloaded', (info) => {
   console.log('update downloaded', info.version);
   send('update-status', { status: 'ready', version: info.version });
 });
+autoUpdater.on('update-not-available', () => {
+  send('update-status', { status: 'up-to-date' });
+});
 autoUpdater.on('error', (err) => {
   console.error('auto-update error', err.message);
+  send('update-status', { status: 'error', error: err.message });
 });
 
 app.whenReady().then(() => {

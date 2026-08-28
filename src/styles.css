@@ -129,6 +129,8 @@ textarea:focus, #detail input:focus { outline: none; border-color: var(--accent)
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes popIn { from { opacity: 0; transform: scale(.94) translateY(8px); } to { opacity: 1; transform: none; } }
 .modal label { display: block; font-size: 13px; margin: 12px 0 4px; color: var(--muted); }
+.modal select { width: 100%; background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.12); color: var(--text); padding: 9px; border-radius: 6px; font-size: 13px; }
+.modal select option { background: var(--panel-solid); }
 .modal input[type=text], .modal input[type=password] { width: 100%; background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.12); color: var(--text); padding: 9px; border-radius: 6px; }
 .modal input:focus { outline: none; border-color: var(--accent); }
 .modal .row { display: flex; gap: 6px; }

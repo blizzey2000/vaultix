@@ -13,7 +13,7 @@ const V = window.vaultix || (() => {
       { gameId: '1', start: now - 1 * 86400000, end: now - 1 * 86400000 + 24 * 60000, minutes: 24, source: 'vaultix' },
       { gameId: '3', start: now - 5 * 86400000, end: now - 5 * 86400000 + 120 * 60000, minutes: 120, source: 'vaultix' },
     ],
-    settings: { accent: '#66c0f4', background: '', dynamicAccent: true, ollamaUrl: 'http://localhost:11434', ollamaModel: 'qwen2.5:3b', hotkey: 'CommandOrControl+Shift+V', autoStart: true, minimizeToTray: true, minimizeOnPlay: true },
+    settings: { theme: 'default', accent: '#66c0f4', background: '', dynamicAccent: true, ollamaUrl: 'http://localhost:11434', ollamaModel: 'qwen2.5:3b', hotkey: 'CommandOrControl+Shift+V', autoStart: true, minimizeToTray: true, minimizeOnPlay: true },
     running: [],
   };
   const ok = async () => ({ ok: true });
@@ -90,10 +90,32 @@ const runningIds = () => state.running.map((r) => r.id);
 function escapeHtml(s) { return String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
 function escapeAttr(s) { return escapeHtml(s).replace(/"/g, '&quot;'); }
 
+const THEMES = {
+  default:  { bg0:'#0b0f14', bg1:'#1b2838', panel:'rgba(23,32,42,.82)', panelSolid:'#141c26', panel2:'#1a2430', accent:'#66c0f4', text:'#e8edf2', muted:'#9fb0bf' },
+  midnight: { bg0:'#0a0a18', bg1:'#16142e', panel:'rgba(22,20,46,.82)', panelSolid:'#12102a', panel2:'#1a1636', accent:'#a78bfa', text:'#e8e4f8', muted:'#9b93bf' },
+  crimson:  { bg0:'#120a0a', bg1:'#2a1418', panel:'rgba(42,20,24,.82)', panelSolid:'#1e1014', panel2:'#2c1620', accent:'#f45866', text:'#f2e8ea', muted:'#bf9ba0' },
+  forest:   { bg0:'#0a120e', bg1:'#142a1e', panel:'rgba(20,42,30,.82)', panelSolid:'#101e16', panel2:'#162c1e', accent:'#57d977', text:'#e8f2ec', muted:'#9bbfa8' },
+  ocean:    { bg0:'#0a1214', bg1:'#142830', panel:'rgba(20,40,48,.82)', panelSolid:'#101e24', panel2:'#162a32', accent:'#22d3ee', text:'#e8f0f2', muted:'#9bb5bf' },
+  sunset:   { bg0:'#14100a', bg1:'#2a2014', panel:'rgba(42,32,20,.82)', panelSolid:'#1e1810', panel2:'#2c2216', accent:'#f4a236', text:'#f2eee8', muted:'#bfab9b' },
+  neon:     { bg0:'#100a14', bg1:'#24142e', panel:'rgba(36,20,46,.82)', panelSolid:'#1a1024', panel2:'#261636', accent:'#f472b6', text:'#f2e8f0', muted:'#bf9bb5' },
+  arctic:   { bg0:'#0e1218', bg1:'#1e2838', panel:'rgba(30,40,56,.82)', panelSolid:'#182230', panel2:'#202c3c', accent:'#7dd3fc', text:'#f0f4f8', muted:'#a4b8c8' },
+  oled:     { bg0:'#000000', bg1:'#0a0a0a', panel:'rgba(12,12,12,.82)', panelSolid:'#080808', panel2:'#101010', accent:'#66c0f4', text:'#e8edf2', muted:'#888888' },
+};
+
 function applySettings() {
   const s = state.settings || {};
-  document.documentElement.style.setProperty('--accent', s.accent || '#66c0f4');
-  document.documentElement.style.setProperty('--accent-2', s.accent2 || shade(s.accent || '#66c0f4', -0.2));
+  const t = THEMES[s.theme] || THEMES.default;
+  const accent = s.theme === 'custom' ? (s.accent || '#66c0f4') : t.accent;
+  const r = document.documentElement;
+  r.style.setProperty('--accent', accent);
+  r.style.setProperty('--accent-2', shade(accent, -0.2));
+  r.style.setProperty('--bg0', t.bg0);
+  r.style.setProperty('--bg1', t.bg1);
+  r.style.setProperty('--panel', t.panel);
+  r.style.setProperty('--panel-solid', t.panelSolid);
+  r.style.setProperty('--panel-2', t.panel2);
+  r.style.setProperty('--text', t.text);
+  r.style.setProperty('--muted', t.muted);
   el('bg').style.backgroundImage = s.background ? `url("${s.background}")` : 'none';
 }
 function shade(hex, amt) {
@@ -570,8 +592,8 @@ el('btn-settings').onclick = async () => {
   el('set-autostart').checked = s.autoStart !== false;
   el('set-tray').checked = s.minimizeToTray !== false;
   el('set-minplay').checked = s.minimizeOnPlay !== false;
+  el('set-theme').value = s.theme || 'default';
   el('set-steamkey').value = s.steamApiKey || '';
-  el('set-steamid').value = s.steamId || '';
   el('set-sshotkey').value = s.screenshotHotkey || 'F12';
   el('set-weeklygoal').value = Math.round((s.weeklyGoalMinutes || 0) / 60);
   el('set-discord').checked = !!s.discordRpc;
@@ -597,6 +619,27 @@ el('set-bg-pick').onclick = async () => {
 };
 el('set-bg-clear').onclick = () => (el('set-bg').value = '');
 el('set-overlay-test').onclick = () => V.testOverlay();
+el('set-theme').onchange = () => {
+  const t = THEMES[el('set-theme').value] || THEMES.default;
+  const accent = el('set-theme').value === 'custom' ? el('set-accent').value : t.accent;
+  const r = document.documentElement;
+  r.style.setProperty('--accent', accent);
+  r.style.setProperty('--accent-2', shade(accent, -0.2));
+  r.style.setProperty('--bg0', t.bg0);
+  r.style.setProperty('--bg1', t.bg1);
+  r.style.setProperty('--panel', t.panel);
+  r.style.setProperty('--panel-solid', t.panelSolid);
+  r.style.setProperty('--panel-2', t.panel2);
+  r.style.setProperty('--text', t.text);
+  r.style.setProperty('--muted', t.muted);
+};
+el('set-checkupdate').onclick = async () => {
+  el('set-update-status').textContent = 'Checking...';
+  const r = await V.checkUpdate();
+  if (r && r.version) {
+    el('set-update-status').textContent = `Update v${r.version} available!`;
+  }
+};
 el('set-steam-link').onclick = () => { window.open('https://steamcommunity.com/dev/apikey', '_blank'); };
 el('set-discord-link').onclick = () => { window.open('https://discord.com/developers/applications', '_blank'); };
 el('set-steamid-detect').onclick = async () => {
@@ -620,6 +663,7 @@ el('set-save').onclick = async () => {
     autoStart: el('set-autostart').checked,
     minimizeToTray: el('set-tray').checked,
     minimizeOnPlay: el('set-minplay').checked,
+    theme: el('set-theme').value,
     steamApiKey: el('set-steamkey').value.trim(),
     steamId: el('set-steamid').value.trim(),
     screenshotHotkey: el('set-sshotkey').value.trim() || 'F12',
@@ -678,13 +722,20 @@ V.on('achievements-changed', () => {
 // ---------- auto-update ----------
 let pendingUpdate = null;
 V.on('update-status', (info) => {
+  const statusEl = el('set-update-status');
   if (info.status === 'downloading') {
     toast(`Downloading update v${info.version}...`, 4000);
+    if (statusEl) statusEl.textContent = `Downloading v${info.version}...`;
   } else if (info.status === 'ready') {
     pendingUpdate = info.version;
     el('update-btn').classList.remove('hidden');
     el('update-btn').textContent = `Update to v${info.version}`;
     toast(`Update v${info.version} ready — click Update to install`, 6000);
+    if (statusEl) statusEl.textContent = `v${info.version} ready — click Update in top bar`;
+  } else if (info.status === 'up-to-date') {
+    if (statusEl) statusEl.textContent = 'You\'re on the latest version!';
+  } else if (info.status === 'error') {
+    if (statusEl) statusEl.textContent = 'Update check failed';
   }
 });
 el('update-btn').onclick = async () => {

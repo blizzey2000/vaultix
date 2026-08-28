@@ -274,6 +274,20 @@
       <label>Background image
         <div class="row"><input id="set-bg" type="text" readonly placeholder="None" /><button id="set-bg-pick">Browse</button><button id="set-bg-clear">Clear</button></div>
       </label>
+      <label>Theme
+        <select id="set-theme">
+          <option value="default">Default (Steam Blue)</option>
+          <option value="midnight">Midnight Purple</option>
+          <option value="crimson">Crimson</option>
+          <option value="forest">Forest Green</option>
+          <option value="ocean">Ocean Teal</option>
+          <option value="sunset">Sunset</option>
+          <option value="neon">Neon Pink</option>
+          <option value="arctic">Arctic</option>
+          <option value="oled">OLED Black</option>
+          <option value="custom">Custom (use accent picker)</option>
+        </select>
+      </label>
       <label>Accent color<input id="set-accent" type="color" /></label>
       <label class="check"><input id="set-dynaccent" type="checkbox" /> Recolor detail page to each game's cover art</label>
       <hr />
@@ -311,6 +325,11 @@
       <div class="row">
         <button id="set-export">Export library</button>
         <button id="set-import">Import library</button>
+      </div>
+      <hr />
+      <div class="row" style="align-items:center">
+        <button id="set-checkupdate">Check for updates</button>
+        <span id="set-update-status" class="hint"></span>
       </div>
       <div class="modal-actions">
         <button id="set-cancel">Cancel</button>
