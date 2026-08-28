@@ -1,0 +1,38 @@
+{
+  "name": "vaultix",
+  "version": "1.0.0",
+  "description": "Vaultix - a custom game launcher for .exe and Steam games with AI descriptions and playtime tracking",
+  "author": "3tobi",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "^32.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  },
+  "build": {
+    "appId": "com.tobi.vaultix",
+    "productName": "Vaultix",
+    "directories": { "output": "dist" },
+    "files": ["electron/**/*", "src/**/*", "package.json"],
+    "publish": [{
+      "provider": "github",
+      "owner": "blizzey2000",
+      "repo": "vaultix"
+    }],
+    "win": {
+      "target": ["nsis"]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "artifactName": "Vaultix-Setup-${version}.exe"
+    }
+  }
+}

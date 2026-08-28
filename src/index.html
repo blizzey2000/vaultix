@@ -1,0 +1,276 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' file: data: https:; style-src 'self' 'unsafe-inline';" />
+  <title>Vaultix</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- SPLASH SCREEN -->
+  <div id="splash">
+    <div class="splash-inner">
+      <div class="splash-logo">VAULT<span>IX</span></div>
+      <div class="splash-bar"><div class="splash-fill"></div></div>
+    </div>
+  </div>
+
+  <div id="bg"></div>
+  <div id="bg-scrim"></div>
+
+  <header class="topbar">
+    <div class="brand">VAULT<span>IX</span> <span id="app-version" class="app-version"></span></div>
+    <button id="update-btn" class="update-btn hidden" title="Update available">Update</button>
+    <nav class="tabs">
+      <button class="tab active" data-view="home">Home</button>
+      <button class="tab" data-view="library">Library</button>
+      <button class="tab" data-view="achievements">Achievements</button>
+      <button class="tab" data-view="stats">Stats</button>
+    </nav>
+    <input id="search" type="search" placeholder="Search..." />
+    <div class="spacer"></div>
+    <button id="btn-add">+ Add game</button>
+    <button id="btn-scan">Scan libraries</button>
+    <button id="btn-settings" title="Settings">⚙</button>
+  </header>
+
+  <main>
+    <!-- HOME -->
+    <section id="home" class="view">
+      <div id="home-hero" class="home-hero hidden">
+        <div id="hh-bg" class="hh-bg"></div>
+        <div class="hh-scrim"></div>
+        <div class="hh-foot">
+          <img id="hh-logo" class="hh-logo hidden" alt="" />
+          <h1 id="hh-name"></h1>
+          <div id="hh-meta" class="hh-meta"></div>
+          <button id="hh-play" class="d-play"><span class="d-play-icon">▶</span> Play</button>
+        </div>
+      </div>
+      <div class="home-row">
+        <h3>Jump back in</h3>
+        <div id="home-recent" class="rail"></div>
+      </div>
+      <div class="home-row">
+        <h3>All games <span id="home-count" class="muted-count"></span></h3>
+        <div id="home-grid" class="grid"></div>
+      </div>
+      <div id="home-empty" class="empty hidden">
+        <h2>Your vault is empty</h2>
+        <p>Add a .exe or scan your libraries to get started.</p>
+      </div>
+    </section>
+
+    <!-- LIBRARY -->
+    <section id="library" class="view hidden">
+      <div id="grid" class="grid"></div>
+      <div id="empty" class="empty hidden">
+        <h2>Nothing matches</h2>
+        <p>Try a different search.</p>
+      </div>
+    </section>
+
+    <!-- ACHIEVEMENTS -->
+    <section id="achievements" class="view hidden">
+      <div class="stats-head">
+        <h2>Achievements <span id="ach-count" class="muted-count"></span></h2>
+      </div>
+      <div id="ach-list" class="ach-grid"></div>
+    </section>
+
+    <!-- STATS -->
+    <section id="stats" class="view hidden">
+      <div class="stats-head">
+        <h2>Playtime</h2>
+        <button id="stats-sync" class="mini">⟳ Sync Steam playtime</button>
+      </div>
+      <div id="stats-totals" class="stats-totals"></div>
+      <div class="stats-block">
+        <h3>Activity</h3>
+        <div id="stats-heatmap"></div>
+      </div>
+      <div class="stats-block">
+        <h3>Most played</h3>
+        <div id="stats-top"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- DETAIL -->
+  <section id="detail" class="hidden">
+    <div class="detail-hero">
+      <div id="d-hero-bg" class="detail-hero-bg"></div>
+      <div class="detail-hero-scrim"></div>
+      <button id="d-back" class="d-back">‹ Back</button>
+      <button id="d-fav" class="d-fav" title="Favorite">☆</button>
+      <div class="detail-hero-foot">
+        <img id="d-logo" class="d-logo hidden" alt="" />
+        <h1 id="d-name"></h1>
+      </div>
+    </div>
+
+    <div class="detail-bar">
+      <button id="d-play" class="d-play">
+        <span class="d-play-icon">▶</span><span id="d-play-label">Play</span>
+      </button>
+      <button id="d-stop" class="d-stop hidden">■ Stop tracking</button>
+      <div class="d-stats">
+        <div class="d-stat"><span class="k">Last Played</span><span id="d-last" class="v">—</span></div>
+        <div class="d-stat"><span class="k">Play Time</span><span id="d-playtime" class="v" title="">—</span></div>
+        <div class="d-stat"><span class="k">Launches</span><span id="d-launches" class="v">—</span></div>
+        <div class="d-stat"><span class="k">Type</span><span id="d-type" class="v">—</span></div>
+      </div>
+    </div>
+
+    <div class="detail-body">
+      <div class="detail-main">
+        <div class="detail-section">
+          <div class="detail-section-head">
+            <h3>About</h3>
+            <button id="d-ai" class="mini">✨ AI describe (local)</button>
+          </div>
+          <div id="d-desc" class="desc-box"></div>
+        </div>
+        <div class="detail-section" id="d-steam-ach-section" style="display:none">
+          <div class="detail-section-head">
+            <h3>Steam Achievements <span id="d-steam-ach-count" class="muted-count"></span></h3>
+            <button id="d-steam-ach-refresh" class="mini">⟳ Refresh</button>
+          </div>
+          <div id="d-steam-ach" class="ach-mini"></div>
+        </div>
+        <div class="detail-section">
+          <h3>Vaultix Achievements <span id="d-ach-count" class="muted-count"></span></h3>
+          <div id="d-ach" class="ach-mini"></div>
+        </div>
+        <div class="detail-section">
+          <h3>Recent sessions</h3>
+          <div id="d-spark"></div>
+          <div id="d-sessions" class="sessions"></div>
+        </div>
+        <div class="detail-section">
+          <h3>Playtime tracking</h3>
+          <label class="field-label">Process name to watch (needed for Steam games)</label>
+          <input id="d-image" type="text" placeholder="game.exe" />
+        </div>
+        <div id="d-path" class="path"></div>
+      </div>
+      <div class="detail-side">
+        <img id="d-cover" class="detail-cover" alt="" />
+        <button id="d-cover-btn">Change cover</button>
+        <div class="quick-actions">
+          <button id="d-bg-btn">Set background</button>
+          <button id="d-bg-clear">Clear</button>
+        </div>
+        <button id="d-save" class="primary">Save changes</button>
+        <div class="quick-actions">
+          <button id="d-folder">Open folder</button>
+          <button id="d-storepage">Store page</button>
+        </div>
+        <button id="d-uninstall">Uninstall</button>
+        <button id="d-remove" class="danger">Remove from Vaultix</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Now Playing dock -->
+  <div id="now-playing" class="now-playing hidden">
+    <img id="np-cover" alt="" />
+    <div class="np-info">
+      <div id="np-name" class="np-name"></div>
+      <div id="np-timer" class="np-timer">00:00</div>
+    </div>
+    <button id="np-stop">Stop</button>
+  </div>
+
+  <!-- Add game modal -->
+  <div id="modal-add" class="modal hidden">
+    <div class="modal-card">
+      <h2>Add a game</h2>
+      <label>Executable
+        <div class="row"><input id="a-exe" type="text" readonly placeholder="Pick a .exe" /><button id="a-pick">Browse</button></div>
+      </label>
+      <label>Name<input id="a-name" type="text" /></label>
+      <label>Launch arguments (optional)<input id="a-args" type="text" /></label>
+      <label class="check"><input id="a-ai" type="checkbox" checked /> Auto-generate description with AI</label>
+      <div class="modal-actions">
+        <button id="a-cancel">Cancel</button>
+        <button id="a-confirm" class="primary">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scan modal -->
+  <div id="modal-scan" class="modal hidden">
+    <div class="modal-card wide">
+      <h2>Scan libraries</h2>
+      <p id="scan-status">Scanning…</p>
+      <div id="scan-list" class="steam-list"></div>
+      <div class="modal-actions">
+        <button id="scan-cancel">Close</button>
+        <button id="scan-all">Select all</button>
+        <button id="scan-confirm" class="primary">Add selected</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings modal -->
+  <div id="modal-settings" class="modal hidden">
+    <div class="modal-card">
+      <h2>Settings</h2>
+      <label>Background image
+        <div class="row"><input id="set-bg" type="text" readonly placeholder="None" /><button id="set-bg-pick">Browse</button><button id="set-bg-clear">Clear</button></div>
+      </label>
+      <label>Accent color<input id="set-accent" type="color" /></label>
+      <label class="check"><input id="set-dynaccent" type="checkbox" /> Recolor detail page to each game's cover art</label>
+      <hr />
+      <label class="check"><input id="set-overlay" type="checkbox" /> Show in-game achievement overlay (PlayStation-style pop-up)</label>
+      <button id="set-overlay-test" class="mini">Preview overlay</button>
+      <hr />
+      <label>Global hotkey<input id="set-hotkey" type="text" placeholder="CommandOrControl+Shift+V" /></label>
+      <label class="check"><input id="set-autostart" type="checkbox" /> Start with Windows (hidden in tray)</label>
+      <label class="check"><input id="set-tray" type="checkbox" /> Close button minimizes to tray</label>
+      <label class="check"><input id="set-minplay" type="checkbox" /> Minimize to tray while a game is running</label>
+      <hr />
+      <label>Steam Web API Key <small><a id="set-steam-link" style="color:var(--accent);cursor:pointer">Get one free</a></small>
+        <input id="set-steamkey" type="text" placeholder="Paste your key here" />
+      </label>
+      <label>Steam ID (auto-detected if blank)
+        <div class="row"><input id="set-steamid" type="text" placeholder="Auto-detect" /><button id="set-steamid-detect" class="mini">Detect</button></div>
+      </label>
+      <p class="hint">Steam API key lets Vaultix show real in-game achievements and detect new unlocks with an overlay while you play.</p>
+      <hr />
+      <label>Ollama URL<input id="set-ollamaurl" type="text" placeholder="http://localhost:11434" /></label>
+      <label>Ollama model
+        <input id="set-ollamamodel" type="text" list="ollama-models" placeholder="qwen2.5:3b" />
+        <datalist id="ollama-models"></datalist>
+      </label>
+      <p id="set-ai-status" class="hint">AI descriptions run 100% locally via Ollama. Nothing leaves your machine.</p>
+      <hr />
+      <div class="row">
+        <button id="set-export">Export library</button>
+        <button id="set-import">Import library</button>
+      </div>
+      <div class="modal-actions">
+        <button id="set-cancel">Cancel</button>
+        <button id="set-save" class="primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- gamepad hint bar -->
+  <div id="gp-hints" class="gp-hints hidden">
+    <span><b class="gp-glyph">Ⓐ</b> Select</span>
+    <span><b class="gp-glyph">Ⓑ</b> Back</span>
+    <span><b class="gp-glyph">▤</b> Menu</span>
+    <span><b class="gp-glyph">LB/RB</b> Sections</span>
+  </div>
+  <div id="gp-connect" class="gp-connect hidden"><div class="gp-icon">🎮</div><span>Controller connected</span></div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="color.js"></script>
+  <script src="stats.js"></script>
+  <script src="gamepad.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>
