@@ -495,40 +495,23 @@ ipcMain.handle('remove-game', (e, id) => {
   return true;
 });
 
-ipcMain.handle('launch-game', (e, id) => {
+ipcMain.handle('launch-game', async (e, id) => {
   const g = store.games.find((x) => x.id === id);
   if (!g) return { ok: false, error: 'not found' };
   if (sessions.has(id)) return { ok: false, error: 'already running' };
   try {
     if (g.type === 'exe') {
       if (!fs.existsSync(g.exePath)) return { ok: false, error: 'exe missing: ' + g.exePath };
-      let child;
-      try {
-        child = spawn(g.exePath, g.args ? g.args.split(' ').filter(Boolean) : [], {
-          detached: true, stdio: 'ignore', cwd: path.dirname(g.exePath), shell: true,
-        });
-      } catch (spawnErr) {
-        return { ok: false, error: 'Could not launch: ' + spawnErr.message };
+      const args = g.args ? g.args.trim() : '';
+      if (args) {
+        exec(`start "" "${g.exePath}" ${args}`, { cwd: path.dirname(g.exePath) });
+      } else {
+        const err = await shell.openPath(g.exePath);
+        if (err) return { ok: false, error: err };
       }
-      child.on('error', (err) => {
-        console.error('child process error', g.name, err.message);
-        if (sessions.has(id)) { finalizeSession(id); }
-        send('session-ended', { gameId: id, minutes: 0, name: g.name, playtimeMinutes: g.playtimeMinutes || 0, totalMinutes: (g.playtimeMinutes || 0) + (g.steamPlaytimeMinutes || 0), lastPlayed: g.lastPlayed });
-      });
-      child.unref();
-      sessions.set(id, { startedAt: Date.now(), pid: child.pid });
-      watchPid(id, child.pid);
-      setTimeout(() => {
-        if (sessions.has(id) && g.imageName) {
-          exec(`tasklist /FI "PID eq ${child.pid}" /NH`, (err, out) => {
-            if (!out || !out.includes(String(child.pid))) {
-              const s = sessions.get(id);
-              if (s && s.watcher) clearInterval(s.watcher);
-              if (s) watchImage(id, g.imageName);
-            }
-          });
-        }
-      }, 8000);
+      sessions.set(id, { startedAt: Date.now(), pid: null });
+      const imgName = g.imageName || path.basename(g.exePath);
+      if (imgName) watchImage(id, imgName);
     } else if (g.type === 'epic') {
       shell.openExternal(g.launchUrl || `com.epicgames.launcher://apps/${g.appid}?action=launch&silent=true`);
       sessions.set(id, { startedAt: Date.now(), pid: null });
