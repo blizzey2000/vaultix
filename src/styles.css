@@ -292,6 +292,59 @@ body.bigpicture .card .cap { opacity: 1; transform: none; }
 }
 .desc-box.empty { color: var(--muted); font-style: italic; }
 
+/* ---------- RATING STARS ---------- */
+.d-rating { display: flex; gap: 2px; margin-right: 16px; }
+.d-rating .star { font-size: 20px; cursor: pointer; color: var(--muted); transition: color .12s, transform .12s; user-select: none; }
+.d-rating .star:hover { transform: scale(1.2); }
+.d-rating .star.on { color: #ffd36b; }
+
+/* ---------- TAGS ---------- */
+.detail-meta-row { display: flex; gap: 20px; flex-wrap: wrap; }
+.meta-field { flex: 1; min-width: 160px; }
+.meta-field select { width: 100%; background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.1); color: var(--text); padding: 8px; border-radius: 6px; font-size: 13px; }
+.meta-field select option { background: var(--panel-solid); }
+.tags-wrap { flex: 2; }
+.tags-box { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.tag-chip { display: inline-flex; align-items: center; gap: 4px; background: rgba(102,192,244,.15); border: 1px solid rgba(102,192,244,.3); color: var(--accent); padding: 3px 8px; border-radius: 14px; font-size: 11px; font-weight: 600; }
+.tag-chip .tag-x { cursor: pointer; opacity: .6; font-size: 13px; }
+.tag-chip .tag-x:hover { opacity: 1; }
+.tag-input { width: 120px; background: rgba(0,0,0,.2); border: 1px solid rgba(255,255,255,.08); color: var(--text); padding: 5px 8px; border-radius: 14px; font-size: 11px; }
+.tag-input:focus { outline: none; border-color: var(--accent); }
+
+/* ---------- LIBRARY FILTERS ---------- */
+.library-filters { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.library-filters select { background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.1); color: var(--text); padding: 8px 12px; border-radius: 6px; font-size: 12px; min-width: 130px; }
+.library-filters select option { background: var(--panel-solid); }
+
+/* ---------- SCREENSHOTS ---------- */
+.ss-gallery { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 8px; }
+.ss-thumb { position: relative; flex: 0 0 200px; height: 112px; border-radius: 8px; overflow: hidden; cursor: pointer; border: 2px solid transparent; transition: border-color .15s, transform .15s; }
+.ss-thumb:hover { border-color: var(--accent); transform: translateY(-3px); }
+.ss-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.ss-thumb .ss-del { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,.7); border: none; color: #ff9b98; font-size: 12px; width: 22px; height: 22px; border-radius: 50%; cursor: pointer; display: none; padding: 0; }
+.ss-thumb:hover .ss-del { display: block; }
+.ss-time { position: absolute; bottom: 0; left: 0; right: 0; font-size: 10px; color: #fff; background: rgba(0,0,0,.6); padding: 3px 6px; text-align: center; }
+
+/* ---------- STREAK / GOAL ---------- */
+.home-streak { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.streak-badge { background: linear-gradient(180deg, rgba(255,140,50,.18), rgba(255,80,20,.08)); border: 1px solid rgba(255,140,50,.3); padding: 8px 16px; border-radius: 10px; font-weight: 700; font-size: 15px; color: #ff9944; }
+.goal-wrap { flex: 1; min-width: 200px; max-width: 360px; }
+.goal-label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.goal-bar { height: 8px; background: rgba(255,255,255,.08); border-radius: 6px; overflow: hidden; }
+.goal-fill { height: 100%; background: linear-gradient(90deg, var(--accent-2), var(--accent)); border-radius: 6px; transition: width .4s ease; }
+
+/* ---------- FRIENDS ---------- */
+.friend-card { flex: 0 0 120px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px; background: var(--panel); border-radius: 10px; border: 1px solid rgba(255,255,255,.07); text-align: center; cursor: default; }
+.friend-card img { width: 48px; height: 48px; border-radius: 50%; border: 2px solid rgba(255,255,255,.1); }
+.friend-card.online img { border-color: var(--ok); }
+.friend-card.ingame img { border-color: var(--accent); box-shadow: 0 0 12px rgba(102,192,244,.4); }
+.friend-name { font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100px; }
+.friend-game { font-size: 10px; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100px; }
+.friend-status { font-size: 10px; color: var(--muted); }
+
+/* ---------- COLLECTION BADGES ---------- */
+.card .coll-badge { position: absolute; bottom: 7px; left: 7px; background: rgba(0,0,0,.62); font-size: 9px; padding: 2px 6px; border-radius: 4px; backdrop-filter: blur(2px); z-index: 3; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }

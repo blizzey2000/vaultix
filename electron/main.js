@@ -7,8 +7,10 @@ const { scanSteamGames, readSteamPlaytime, findSteamRoot } = require('./steam');
 const { scanEpicGames } = require('./epic');
 const { describeGame, listModels } = require('./ai');
 const { evaluate: evalAchievements } = require('./achievements');
-const { detectSteamId, getGameAchievements, fetchPlayerAchievements } = require('./steam-achievements');
+const { detectSteamId, getGameAchievements, fetchPlayerAchievements, getSteamFriends } = require('./steam-achievements');
+const { DiscordRPC } = require('./discord-rpc');
 const { autoUpdater } = require('electron-updater');
+const { desktopCapturer } = require('electron');
 
 // FORCE data to %APPDATA%\Vaultix regardless of portable vs installed mode.
 // This is the critical fix: electron-builder portable can reset userData on re-extract.
@@ -35,6 +37,8 @@ if (!fs.existsSync(storeFile) && process.env.PORTABLE_EXECUTABLE_DIR) {
 const store = new Store(storeFile);
 const coversDir = path.join(dataDir, 'covers');
 fs.mkdirSync(coversDir, { recursive: true });
+const screenshotsDir = path.join(dataDir, 'screenshots');
+fs.mkdirSync(screenshotsDir, { recursive: true });
 
 const startHidden = process.argv.includes('--hidden');
 let win;
@@ -42,6 +46,8 @@ let overlay;
 let tray;
 let isQuitting = false;
 const sessions = new Map(); // gameId -> { startedAt, pid, watcher }
+const discord = new DiscordRPC();
+let screenshotHotkeyRegistered = false;
 
 // single instance
 if (!app.requestSingleInstanceLock()) { app.quit(); }
@@ -166,6 +172,59 @@ function registerHotkey() {
   try { globalShortcut.unregisterAll(); } catch (e) {}
   const hk = store.settings.hotkey || 'CommandOrControl+Shift+V';
   try { globalShortcut.register(hk, toggleWindow); } catch (e) { console.error('hotkey failed', hk, e); }
+  if (sessions.size > 0) registerScreenshotHotkey();
+}
+
+function registerScreenshotHotkey() {
+  if (screenshotHotkeyRegistered) return;
+  const hk = store.settings.screenshotHotkey || 'F12';
+  try {
+    globalShortcut.register(hk, () => takeScreenshot());
+    screenshotHotkeyRegistered = true;
+  } catch (e) { console.error('screenshot hotkey failed', hk, e); }
+}
+
+function unregisterScreenshotHotkey() {
+  if (!screenshotHotkeyRegistered) return;
+  const hk = store.settings.screenshotHotkey || 'F12';
+  try { globalShortcut.unregister(hk); } catch (e) {}
+  screenshotHotkeyRegistered = false;
+}
+
+async function takeScreenshot(gameId) {
+  try {
+    const id = gameId || (sessions.size > 0 ? [...sessions.keys()][0] : null);
+    if (!id) return null;
+    const gameDir = path.join(screenshotsDir, id);
+    fs.mkdirSync(gameDir, { recursive: true });
+    const sources = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize: { width: 1920, height: 1080 },
+    });
+    if (!sources.length) return null;
+    const image = sources[0].thumbnail;
+    const filename = `ss_${Date.now()}.png`;
+    const filepath = path.join(gameDir, filename);
+    fs.writeFileSync(filepath, image.toPNG());
+    send('screenshot-taken', { gameId: id, filename, path: filepath });
+    showOverlay({ icon: '📸', name: 'Screenshot saved', desc: filename });
+    return { ok: true, filename, path: filepath };
+  } catch (e) {
+    console.error('screenshot failed', e);
+    return { ok: false, error: e.message };
+  }
+}
+
+// ---------- Discord Rich Presence ----------
+async function startDiscord(gameName, startedAt) {
+  if (!store.settings.discordRpc || !store.settings.discordClientId) return;
+  try {
+    await discord.connect(store.settings.discordClientId);
+    discord.setActivity(`Playing ${gameName}`, 'via Vaultix', startedAt);
+  } catch (e) { console.error('discord rpc failed', e.message); }
+}
+function stopDiscord() {
+  try { discord.clearActivity(); } catch (e) {}
 }
 
 function applyAutoStart() {
@@ -235,7 +294,11 @@ function finalizeSession(gameId) {
     store.addSession({ gameId, start: s.startedAt, end, minutes, source: 'vaultix' });
   }
   sessions.delete(gameId);
-  if (sessions.size === 0) stopSteamAchievementPolling();
+  if (sessions.size === 0) {
+    stopSteamAchievementPolling();
+    unregisterScreenshotHotkey();
+    stopDiscord();
+  }
   send('session-ended', {
     gameId, minutes,
     name: g ? g.name : '',
@@ -475,6 +538,8 @@ ipcMain.handle('launch-game', (e, id) => {
     }
     checkAchievements();
     if (g.type === 'steam' && g.appid) startSteamAchievementPolling(id, g.appid);
+    registerScreenshotHotkey();
+    startDiscord(g.name, Date.now());
     send('session-started', { gameId: id, startedAt: Date.now() });
     if (store.settings.minimizeOnPlay && win && !win.isDestroyed()) {
       setTimeout(() => { if (sessions.has(id)) win.hide(); }, 1200);
@@ -673,4 +738,70 @@ ipcMain.handle('import-library', async () => {
   }
   if (data.settings) store.settings = Object.assign(store.settings, data.settings);
   return { ok: true, merged };
+});
+
+// ---------- screenshots ----------
+ipcMain.handle('take-screenshot', async (e, gameId) => {
+  return takeScreenshot(gameId);
+});
+
+ipcMain.handle('get-screenshots', (e, gameId) => {
+  const gameDir = path.join(screenshotsDir, gameId);
+  try {
+    if (!fs.existsSync(gameDir)) return [];
+    return fs.readdirSync(gameDir)
+      .filter((f) => f.endsWith('.png'))
+      .sort((a, b) => b.localeCompare(a))
+      .map((f) => ({
+        filename: f,
+        path: 'file://' + path.join(gameDir, f).replace(/\\/g, '/'),
+        time: parseInt(f.replace('ss_', '').replace('.png', ''), 10) || 0,
+      }));
+  } catch (e) { return []; }
+});
+
+ipcMain.handle('delete-screenshot', (e, { gameId, filename }) => {
+  try {
+    fs.unlinkSync(path.join(screenshotsDir, gameId, filename));
+    return true;
+  } catch (e) { return false; }
+});
+
+ipcMain.handle('open-screenshot', (e, filepath) => {
+  shell.openPath(filepath.replace('file://', '').replace(/\//g, '\\'));
+});
+
+// ---------- Steam friends ----------
+ipcMain.handle('get-steam-friends', async () => {
+  const apiKey = store.settings.steamApiKey;
+  const steamId = store.settings.steamId || detectSteamId();
+  if (!apiKey || !steamId) return { ok: false, error: 'Steam API key or ID not set' };
+  const friends = await getSteamFriends(apiKey, steamId);
+  return { ok: true, friends };
+});
+
+// ---------- streak / stats ----------
+ipcMain.handle('get-streak', () => {
+  const sessions = store.sessions;
+  const days = new Set();
+  for (const s of sessions) {
+    const d = new Date(s.start || s.end);
+    days.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+  }
+  let streak = 0;
+  const check = new Date();
+  const todayKey = `${check.getFullYear()}-${check.getMonth()}-${check.getDate()}`;
+  if (!days.has(todayKey)) check.setDate(check.getDate() - 1);
+  while (true) {
+    const key = `${check.getFullYear()}-${check.getMonth()}-${check.getDate()}`;
+    if (days.has(key)) { streak++; check.setDate(check.getDate() - 1); }
+    else break;
+  }
+  const now = Date.now();
+  const weekAgo = now - 7 * 86400000;
+  let weeklyMinutes = 0;
+  for (const s of sessions) {
+    if ((s.start || s.end || 0) >= weekAgo) weeklyMinutes += s.minutes || 0;
+  }
+  return { streak, weeklyMinutes, goalMinutes: store.settings.weeklyGoalMinutes || 0 };
 });

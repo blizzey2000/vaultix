@@ -47,6 +47,17 @@
           <button id="hh-play" class="d-play"><span class="d-play-icon">▶</span> Play</button>
         </div>
       </div>
+      <div id="home-streak" class="home-streak hidden">
+        <div class="streak-badge" id="streak-badge"></div>
+        <div id="home-goal" class="goal-wrap hidden">
+          <div class="goal-label">Weekly: <span id="goal-progress">0</span>/<span id="goal-target">0</span> hrs</div>
+          <div class="goal-bar"><div id="goal-fill" class="goal-fill"></div></div>
+        </div>
+      </div>
+      <div class="home-row" id="home-friends-row" style="display:none">
+        <h3>Friends online</h3>
+        <div id="home-friends" class="rail"></div>
+      </div>
       <div class="home-row">
         <h3>Jump back in</h3>
         <div id="home-recent" class="rail"></div>
@@ -63,6 +74,22 @@
 
     <!-- LIBRARY -->
     <section id="library" class="view hidden">
+      <div class="library-filters">
+        <select id="filter-collection">
+          <option value="">All games</option>
+          <option value="playing">Playing</option>
+          <option value="backlog">Backlog</option>
+          <option value="completed">Completed</option>
+          <option value="dropped">Dropped</option>
+        </select>
+        <select id="filter-tag"><option value="">All tags</option></select>
+        <select id="sort-by">
+          <option value="recent">Recently played</option>
+          <option value="name">Name</option>
+          <option value="rating">Rating</option>
+          <option value="playtime">Playtime</option>
+        </select>
+      </div>
       <div id="grid" class="grid"></div>
       <div id="empty" class="empty hidden">
         <h2>Nothing matches</h2>
@@ -114,6 +141,9 @@
         <span class="d-play-icon">▶</span><span id="d-play-label">Play</span>
       </button>
       <button id="d-stop" class="d-stop hidden">■ Stop tracking</button>
+      <div class="d-rating" id="d-rating">
+        <span class="star" data-r="1">☆</span><span class="star" data-r="2">☆</span><span class="star" data-r="3">☆</span><span class="star" data-r="4">☆</span><span class="star" data-r="5">☆</span>
+      </div>
       <div class="d-stats">
         <div class="d-stat"><span class="k">Last Played</span><span id="d-last" class="v">—</span></div>
         <div class="d-stat"><span class="k">Play Time</span><span id="d-playtime" class="v" title="">—</span></div>
@@ -131,12 +161,36 @@
           </div>
           <div id="d-desc" class="desc-box"></div>
         </div>
+        <div class="detail-section detail-meta-row">
+          <div class="meta-field">
+            <label class="field-label">Collection</label>
+            <select id="d-collection">
+              <option value="">None</option>
+              <option value="playing">Playing</option>
+              <option value="backlog">Backlog</option>
+              <option value="completed">Completed</option>
+              <option value="dropped">Dropped</option>
+            </select>
+          </div>
+          <div class="meta-field tags-wrap">
+            <label class="field-label">Tags</label>
+            <div id="d-tags" class="tags-box"></div>
+            <input id="d-tag-input" type="text" class="tag-input" placeholder="Add tag + Enter" />
+          </div>
+        </div>
         <div class="detail-section" id="d-steam-ach-section" style="display:none">
           <div class="detail-section-head">
             <h3>Steam Achievements <span id="d-steam-ach-count" class="muted-count"></span></h3>
             <button id="d-steam-ach-refresh" class="mini">⟳ Refresh</button>
           </div>
           <div id="d-steam-ach" class="ach-mini"></div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-section-head">
+            <h3>Screenshots <span id="d-ss-count" class="muted-count"></span></h3>
+            <button id="d-ss-take" class="mini">📸 Capture</button>
+          </div>
+          <div id="d-screenshots" class="ss-gallery"></div>
         </div>
         <div class="detail-section">
           <h3>Vaultix Achievements <span id="d-ach-count" class="muted-count"></span></h3>
@@ -238,6 +292,14 @@
         <div class="row"><input id="set-steamid" type="text" placeholder="Auto-detect" /><button id="set-steamid-detect" class="mini">Detect</button></div>
       </label>
       <p class="hint">Steam API key lets Vaultix show real in-game achievements and detect new unlocks with an overlay while you play.</p>
+      <hr />
+      <label>Screenshot hotkey<input id="set-sshotkey" type="text" placeholder="F12" /></label>
+      <label>Weekly playtime goal (hours, 0 = off)<input id="set-weeklygoal" type="number" min="0" value="0" /></label>
+      <hr />
+      <label class="check"><input id="set-discord" type="checkbox" /> Discord Rich Presence (show what you're playing)</label>
+      <label>Discord Application ID <small><a id="set-discord-link" style="color:var(--accent);cursor:pointer">Create one</a></small>
+        <input id="set-discordid" type="text" placeholder="Create an app at discord.com/developers" />
+      </label>
       <hr />
       <label>Ollama URL<input id="set-ollamaurl" type="text" placeholder="http://localhost:11434" /></label>
       <label>Ollama model

@@ -1,6 +1,6 @@
 {
   "name": "vaultix",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Vaultix - a custom game launcher for .exe and Steam games with AI descriptions and playtime tracking",
   "author": "3tobi",
   "main": "electron/main.js",

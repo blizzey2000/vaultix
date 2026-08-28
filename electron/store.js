@@ -15,6 +15,10 @@ const DEFAULT_SETTINGS = {
   overlayCorner: 'top',
   steamApiKey: '',
   steamId: '',
+  screenshotHotkey: 'F12',
+  weeklyGoalMinutes: 0,
+  discordRpc: false,
+  discordClientId: '',
 };
 
 const GAME_DEFAULTS = {
@@ -24,6 +28,9 @@ const GAME_DEFAULTS = {
   steamPlaytimeMinutes: 0,
   launchCount: 0,
   lastPlayed: null,
+  rating: 0,
+  tags: [],
+  collection: '',
 };
 
 class Store {

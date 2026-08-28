@@ -88,4 +88,31 @@ async function getGameAchievements(appid, apiKey, steamId) {
   }
 }
 
-module.exports = { detectSteamId, getGameAchievements, fetchPlayerAchievements, fetchAchievementSchema };
+async function getSteamFriends(apiKey, steamId) {
+  try {
+    const friendsData = await httpGet(
+      `https://api.steampowered.com/ISteamUser/GetFriendList/v1/?key=${apiKey}&steamid=${steamId}&relationship=friend`
+    );
+    const friends = friendsData.friendslist && friendsData.friendslist.friends || [];
+    if (!friends.length) return [];
+
+    const ids = friends.map((f) => f.steamid).slice(0, 100).join(',');
+    const summData = await httpGet(
+      `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=${apiKey}&steamids=${ids}`
+    );
+    const players = summData.response && summData.response.players || [];
+
+    return players.map((p) => ({
+      steamId: p.steamid,
+      name: p.personaname,
+      avatar: p.avatarmedium,
+      status: p.personastate,
+      gameId: p.gameid || null,
+      gameName: p.gameextrainfo || null,
+    })).sort((a, b) => (b.gameName ? 1 : 0) - (a.gameName ? 1 : 0) || b.status - a.status);
+  } catch (e) {
+    return [];
+  }
+}
+
+module.exports = { detectSteamId, getGameAchievements, fetchPlayerAchievements, fetchAchievementSchema, getSteamFriends };

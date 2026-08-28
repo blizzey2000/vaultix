@@ -40,6 +40,15 @@ const V = window.vaultix || (() => {
     detectSteamId: async () => '76561198012345678',
     installUpdate: ok, checkUpdate: async () => null, getVersion: async () => '1.0.0',
     openFolder: ok, openStorePage: ok, uninstallGame: ok, exportLibrary: ok, importLibrary: async () => ({ ok: true, merged: 0 }),
+    takeScreenshot: async () => ({ ok: true, filename: 'ss_demo.png' }),
+    getScreenshots: async () => [],
+    deleteScreenshot: ok, openScreenshot: ok,
+    getSteamFriends: async () => ({ ok: true, friends: [
+      { steamId: '1', name: 'PlayerOne', avatar: '', status: 1, gameName: 'Counter-Strike 2', gameId: '730' },
+      { steamId: '2', name: 'xGamer', avatar: '', status: 1, gameName: null, gameId: null },
+      { steamId: '3', name: 'AFK_Andy', avatar: '', status: 0, gameName: null, gameId: null },
+    ] }),
+    getStreak: async () => ({ streak: 3, weeklyMinutes: 210, goalMinutes: 600 }),
     on: () => {},
   };
 })();
@@ -109,13 +118,16 @@ function coverHtml(g) {
   return `<div class="fallback">${escapeHtml(g.name)}</div>`;
 }
 
+const collLabels = { playing: 'Playing', backlog: 'Backlog', completed: 'Completed', dropped: 'Dropped' };
+
 function cardHtml(g, i) {
   return `<div class="card ${g.id === selectedId ? 'selected' : ''}" data-id="${g.id}" style="animation-delay:${Math.min(i * 22, 360)}ms">
     <span class="badge">${g.type}</span>
     ${runningIds().includes(g.id) ? '<span class="running-dot"></span>' : ''}
     <button class="fav-star ${g.favorite ? 'on' : ''}" data-fav="${g.id}" title="Favorite">${g.favorite ? '★' : '☆'}</button>
+    ${g.collection ? `<span class="coll-badge">${escapeHtml(collLabels[g.collection] || g.collection)}</span>` : ''}
     ${coverHtml(g)}
-    <div class="cap">${escapeHtml(g.name)}</div>
+    <div class="cap">${escapeHtml(g.name)}${g.rating ? ' <span style="color:#ffd36b;font-size:10px">' + '★'.repeat(g.rating) + '</span>' : ''}</div>
   </div>`;
 }
 function wireCards(root) {
@@ -169,10 +181,52 @@ function achCardHtml(a) {
   </div>`;
 }
 
+async function renderStreakAndGoal() {
+  try {
+    const s = await V.getStreak();
+    const box = el('home-streak');
+    if (s.streak > 0 || s.goalMinutes > 0) {
+      box.classList.remove('hidden');
+      el('streak-badge').innerHTML = s.streak > 0 ? `&#x1F525; ${s.streak} day streak` : '';
+      const gw = el('home-goal');
+      if (s.goalMinutes > 0) {
+        gw.classList.remove('hidden');
+        const hrs = (s.weeklyMinutes / 60).toFixed(1);
+        const goalHrs = (s.goalMinutes / 60).toFixed(0);
+        el('goal-progress').textContent = hrs;
+        el('goal-target').textContent = goalHrs;
+        el('goal-fill').style.width = Math.min(100, (s.weeklyMinutes / s.goalMinutes) * 100) + '%';
+      } else gw.classList.add('hidden');
+    } else box.classList.add('hidden');
+  } catch (e) {}
+}
+
+async function renderFriends() {
+  try {
+    const res = await V.getSteamFriends();
+    const row = el('home-friends-row');
+    if (!res.ok || !res.friends.length) { row.style.display = 'none'; return; }
+    row.style.display = '';
+    const online = res.friends.filter((f) => f.status > 0 || f.gameName);
+    if (!online.length) { row.style.display = 'none'; return; }
+    el('home-friends').innerHTML = online.slice(0, 20).map((f) => {
+      const cls = f.gameName ? 'ingame' : 'online';
+      const fallback = f.name.charAt(0).toUpperCase();
+      return `<div class="friend-card ${cls}">
+        ${f.avatar ? `<img src="${escapeAttr(f.avatar)}" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'fallback',style:'width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;background:var(--panel-2)',textContent:'${fallback}'}))" />` : `<div class="fallback" style="width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;background:var(--panel-2)">${fallback}</div>`}
+        <span class="friend-name">${escapeHtml(f.name)}</span>
+        ${f.gameName ? `<span class="friend-game">${escapeHtml(f.gameName)}</span>` : `<span class="friend-status">${f.status >= 1 ? 'Online' : 'Offline'}</span>`}
+      </div>`;
+    }).join('');
+  } catch (e) {}
+}
+
 function renderHome() {
   const games = sortedGames();
   el('home-empty').classList.toggle('hidden', games.length > 0);
   el('home-count').textContent = games.length ? `(${games.length})` : '';
+  renderStreakAndGoal();
+  renderFriends();
 
   const featured = games[0];
   const hero = el('home-hero');
@@ -203,7 +257,29 @@ function renderHome() {
 
 function renderLibrary() {
   const q = el('search').value.toLowerCase().trim();
-  const games = sortedGames().filter((g) => !q || g.name.toLowerCase().includes(q));
+  const fc = el('filter-collection').value;
+  const ft = el('filter-tag').value;
+  const sb = el('sort-by').value;
+
+  // populate tag filter from all games
+  const allTags = new Set();
+  state.games.forEach((g) => (g.tags || []).forEach((t) => allTags.add(t)));
+  const tagSel = el('filter-tag');
+  const curTag = tagSel.value;
+  tagSel.innerHTML = '<option value="">All tags</option>' + [...allTags].sort().map((t) => `<option value="${escapeAttr(t)}">${escapeHtml(t)}</option>`).join('');
+  tagSel.value = curTag;
+
+  let games = sortedGames().filter((g) => {
+    if (q && !g.name.toLowerCase().includes(q)) return false;
+    if (fc && g.collection !== fc) return false;
+    if (ft && !(g.tags || []).includes(ft)) return false;
+    return true;
+  });
+
+  if (sb === 'name') games.sort((a, b) => a.name.localeCompare(b.name));
+  else if (sb === 'rating') games.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+  else if (sb === 'playtime') games.sort((a, b) => combinedMin(b) - combinedMin(a));
+
   el('empty').classList.toggle('hidden', games.length > 0);
   el('grid').innerHTML = games.map((g, i) => cardHtml(g, i)).join('');
   wireCards(el('grid'));
@@ -255,6 +331,22 @@ async function openDetail(id) {
   el('d-desc').textContent = g.description || 'No description yet. Hit "AI describe" to generate one locally with Ollama.';
   el('d-desc').classList.toggle('empty', !g.description);
   el('d-image').value = g.imageName || '';
+
+  // rating
+  el('d-rating').querySelectorAll('.star').forEach((s) => {
+    const r = parseInt(s.dataset.r, 10);
+    s.textContent = r <= (g.rating || 0) ? '★' : '☆';
+    s.classList.toggle('on', r <= (g.rating || 0));
+  });
+
+  // collection
+  el('d-collection').value = g.collection || '';
+
+  // tags
+  renderTags(g);
+
+  // screenshots
+  renderScreenshots(g.id);
   el('d-cover').src = g.cover || '';
   el('d-path').textContent = g.exePath || g.installDir || (g.type === 'steam' ? `steam://rungameid/${g.appid}` : g.launchUrl || '');
   el('d-spark').innerHTML = window.Stats.sparkline(g.id, state.sessions);
@@ -480,6 +572,10 @@ el('btn-settings').onclick = async () => {
   el('set-minplay').checked = s.minimizeOnPlay !== false;
   el('set-steamkey').value = s.steamApiKey || '';
   el('set-steamid').value = s.steamId || '';
+  el('set-sshotkey').value = s.screenshotHotkey || 'F12';
+  el('set-weeklygoal').value = Math.round((s.weeklyGoalMinutes || 0) / 60);
+  el('set-discord').checked = !!s.discordRpc;
+  el('set-discordid').value = s.discordClientId || '';
   el('set-ollamaurl').value = s.ollamaUrl || 'http://localhost:11434';
   el('set-ollamamodel').value = s.ollamaModel || 'qwen2.5:3b';
   el('modal-settings').classList.remove('hidden');
@@ -502,6 +598,7 @@ el('set-bg-pick').onclick = async () => {
 el('set-bg-clear').onclick = () => (el('set-bg').value = '');
 el('set-overlay-test').onclick = () => V.testOverlay();
 el('set-steam-link').onclick = () => { window.open('https://steamcommunity.com/dev/apikey', '_blank'); };
+el('set-discord-link').onclick = () => { window.open('https://discord.com/developers/applications', '_blank'); };
 el('set-steamid-detect').onclick = async () => {
   const id = await V.detectSteamId();
   if (id) { el('set-steamid').value = id; toast('Detected Steam ID: ' + id); }
@@ -525,6 +622,10 @@ el('set-save').onclick = async () => {
     minimizeOnPlay: el('set-minplay').checked,
     steamApiKey: el('set-steamkey').value.trim(),
     steamId: el('set-steamid').value.trim(),
+    screenshotHotkey: el('set-sshotkey').value.trim() || 'F12',
+    weeklyGoalMinutes: Math.max(0, parseInt(el('set-weeklygoal').value, 10) || 0) * 60,
+    discordRpc: el('set-discord').checked,
+    discordClientId: el('set-discordid').value.trim(),
     ollamaUrl: el('set-ollamaurl').value.trim() || 'http://localhost:11434',
     ollamaModel: el('set-ollamamodel').value.trim() || 'qwen2.5:3b',
   });
@@ -562,6 +663,12 @@ V.on('session-ended', (info) => {
 });
 V.on('achievement-unlocked', (a) => {
   showAchievementBanner(a);
+});
+V.on('screenshot-taken', (data) => {
+  toast('Screenshot saved!');
+  if (selectedId === data.gameId && !el('detail').classList.contains('hidden')) {
+    renderScreenshots(data.gameId);
+  }
 });
 V.on('achievements-changed', () => {
   if (currentView === 'achievements') renderAchievements();
@@ -634,6 +741,109 @@ async function fetchAndShowSteamAch(gameId) {
 }
 
 el('d-steam-ach-refresh').onclick = () => { if (selectedId) fetchAndShowSteamAch(selectedId); };
+
+// ---------- rating ----------
+el('d-rating').addEventListener('click', async (e) => {
+  const star = e.target.closest('.star');
+  if (!star || !selectedId) return;
+  const r = parseInt(star.dataset.r, 10);
+  const g = state.games.find((x) => x.id === selectedId);
+  const newRating = (g && g.rating === r) ? 0 : r; // click same star to clear
+  await V.updateGame({ id: selectedId, rating: newRating });
+  await refresh();
+});
+el('d-rating').addEventListener('mouseover', (e) => {
+  const star = e.target.closest('.star');
+  if (!star) return;
+  const r = parseInt(star.dataset.r, 10);
+  el('d-rating').querySelectorAll('.star').forEach((s) => {
+    s.textContent = parseInt(s.dataset.r, 10) <= r ? '★' : '☆';
+    s.classList.toggle('on', parseInt(s.dataset.r, 10) <= r);
+  });
+});
+el('d-rating').addEventListener('mouseleave', () => {
+  if (!selectedId) return;
+  const g = state.games.find((x) => x.id === selectedId);
+  el('d-rating').querySelectorAll('.star').forEach((s) => {
+    const r = parseInt(s.dataset.r, 10);
+    s.textContent = r <= (g?.rating || 0) ? '★' : '☆';
+    s.classList.toggle('on', r <= (g?.rating || 0));
+  });
+});
+
+// ---------- collection ----------
+el('d-collection').onchange = async () => {
+  if (!selectedId) return;
+  await V.updateGame({ id: selectedId, collection: el('d-collection').value });
+  await refresh();
+};
+
+// ---------- tags ----------
+function renderTags(g) {
+  const box = el('d-tags');
+  box.innerHTML = (g.tags || []).map((t) =>
+    `<span class="tag-chip">${escapeHtml(t)}<span class="tag-x" data-tag="${escapeAttr(t)}">×</span></span>`
+  ).join('');
+  box.querySelectorAll('.tag-x').forEach((x) => {
+    x.onclick = async () => {
+      const tags = (g.tags || []).filter((t) => t !== x.dataset.tag);
+      await V.updateGame({ id: selectedId, tags });
+      await refresh();
+    };
+  });
+}
+el('d-tag-input').addEventListener('keydown', async (e) => {
+  if (e.key !== 'Enter') return;
+  const val = e.target.value.trim();
+  if (!val || !selectedId) return;
+  const g = state.games.find((x) => x.id === selectedId);
+  const tags = [...new Set([...(g?.tags || []), val])];
+  await V.updateGame({ id: selectedId, tags });
+  e.target.value = '';
+  await refresh();
+});
+
+// ---------- screenshots ----------
+async function renderScreenshots(gameId) {
+  const box = el('d-screenshots');
+  const shots = await V.getScreenshots(gameId);
+  el('d-ss-count').textContent = shots.length ? `(${shots.length})` : '';
+  if (!shots.length) {
+    box.innerHTML = '<p class="hint">No screenshots yet. Press F12 while gaming to capture.</p>';
+    return;
+  }
+  box.innerHTML = shots.slice(0, 20).map((s) => `
+    <div class="ss-thumb" data-path="${escapeAttr(s.path)}">
+      <img src="${escapeAttr(s.path)}" alt="" />
+      <button class="ss-del" data-fn="${escapeAttr(s.filename)}" title="Delete">×</button>
+      <div class="ss-time">${new Date(s.time).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+    </div>`).join('');
+  box.querySelectorAll('.ss-thumb').forEach((t) => {
+    t.onclick = (e) => {
+      if (e.target.closest('.ss-del')) return;
+      V.openScreenshot(t.dataset.path);
+    };
+  });
+  box.querySelectorAll('.ss-del').forEach((d) => {
+    d.onclick = async (e) => {
+      e.stopPropagation();
+      if (!confirm('Delete this screenshot?')) return;
+      await V.deleteScreenshot(gameId, d.dataset.fn);
+      renderScreenshots(gameId);
+    };
+  });
+}
+el('d-ss-take').onclick = async () => {
+  if (!selectedId) return;
+  const r = await V.takeScreenshot(selectedId);
+  if (r && r.ok) { toast('Screenshot captured!'); renderScreenshots(selectedId); }
+  else toast('Screenshot failed');
+};
+
+// ---------- library filters ----------
+el('filter-collection').onchange = () => renderLibrary();
+el('filter-tag').onchange = () => renderLibrary();
+el('sort-by').onchange = () => renderLibrary();
 
 // ---------- splash screen ----------
 function dismissSplash() {

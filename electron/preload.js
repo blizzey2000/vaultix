@@ -29,8 +29,14 @@ contextBridge.exposeInMainWorld('vaultix', {
   getVersion: () => ipcRenderer.invoke('get-version'),
   exportLibrary: () => ipcRenderer.invoke('export-library'),
   importLibrary: () => ipcRenderer.invoke('import-library'),
+  takeScreenshot: (gameId) => ipcRenderer.invoke('take-screenshot', gameId),
+  getScreenshots: (gameId) => ipcRenderer.invoke('get-screenshots', gameId),
+  deleteScreenshot: (gameId, filename) => ipcRenderer.invoke('delete-screenshot', { gameId, filename }),
+  openScreenshot: (filepath) => ipcRenderer.invoke('open-screenshot', filepath),
+  getSteamFriends: () => ipcRenderer.invoke('get-steam-friends'),
+  getStreak: () => ipcRenderer.invoke('get-streak'),
   on: (channel, cb) => {
-    const allowed = ['session-started', 'session-ended', 'achievement-unlocked', 'achievements-changed', 'update-status'];
+    const allowed = ['session-started', 'session-ended', 'achievement-unlocked', 'achievements-changed', 'update-status', 'screenshot-taken'];
     if (allowed.includes(channel)) ipcRenderer.on(channel, (e, data) => cb(data));
   },
 });
