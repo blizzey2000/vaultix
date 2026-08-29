@@ -261,7 +261,7 @@ function renderHome() {
   const hero = el('home-hero');
   if (featured) {
     hero.classList.remove('hidden');
-    const bg = heroImageFor(featured);
+    const bg = featured.background || heroImageFor(featured);
     setBg(el('hh-bg'), bg, featured.cover);
     const logo = logoImageFor(featured);
     el('hh-name').textContent = featured.name;

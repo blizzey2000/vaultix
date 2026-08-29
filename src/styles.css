@@ -24,7 +24,7 @@ button.mini { padding: 4px 10px; font-size: 11px; }
 #bg { position: fixed; inset: 0; background-size: cover; background-position: center; z-index: -2; transform: scale(1.05); }
 #bg-scrim { position: fixed; inset: 0; background: linear-gradient(180deg, rgba(11,15,20,.74), rgba(11,15,20,.93)); z-index: -1; }
 
-.topbar { display: flex; align-items: center; gap: 12px; padding: 12px 18px; background: rgba(9,12,17,.6); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,.06); position: relative; z-index: 5; }
+.topbar { display: flex; align-items: center; gap: 12px; padding: 12px 18px; background: rgba(9,12,17,.6); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,.06); position: relative; z-index: 20; }
 .brand { font-weight: 800; letter-spacing: 3px; font-size: 20px; }
 .brand span { color: var(--accent); }
 .app-version { font-size: 10px; font-weight: 400; color: var(--muted); letter-spacing: 0; vertical-align: super; }

@@ -312,7 +312,14 @@ async function checkOllama() {
     const r = await fetch(base + '/api/tags', { signal: AbortSignal.timeout(3000) });
     if (r.ok) return;
   } catch (e) { /* not running */ }
-  send('ollama-not-running');
+  try {
+    const p = spawn('ollama', ['serve'], { detached: true, stdio: 'ignore', shell: true });
+    p.unref();
+    console.log('auto-started ollama serve');
+  } catch (e) {
+    console.error('could not auto-start ollama', e.message);
+    send('ollama-not-running');
+  }
 }
 
 ipcMain.handle('start-ollama', async () => {
