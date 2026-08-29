@@ -171,6 +171,7 @@ const sortedGames = () => [...state.games].sort((a, b) =>
 // ---------- views ----------
 function switchView(v) {
   currentView = v;
+  if (!el('detail').classList.contains('hidden')) closeDetail();
   document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.view === v));
   document.querySelectorAll('main .view').forEach((s) => s.classList.toggle('hidden', s.id !== v));
   if (v === 'home') renderHome();

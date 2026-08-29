@@ -313,9 +313,16 @@ async function checkOllama() {
     if (r.ok) return;
   } catch (e) { /* not running */ }
   try {
-    const p = spawn('ollama', ['serve'], { detached: true, stdio: 'ignore', shell: true });
-    p.unref();
-    console.log('auto-started ollama serve');
+    const ollamaApp = path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Ollama', 'ollama app.exe');
+    if (fs.existsSync(ollamaApp)) {
+      const p = spawn(ollamaApp, [], { detached: true, stdio: 'ignore' });
+      p.unref();
+      console.log('auto-started ollama app');
+    } else {
+      const p = spawn('ollama', ['serve'], { detached: true, stdio: 'ignore', shell: true });
+      p.unref();
+      console.log('auto-started ollama serve (app not found)');
+    }
   } catch (e) {
     console.error('could not auto-start ollama', e.message);
     send('ollama-not-running');
@@ -324,9 +331,15 @@ async function checkOllama() {
 
 ipcMain.handle('start-ollama', async () => {
   try {
-    const p = spawn('ollama', ['serve'], { detached: true, stdio: 'ignore', shell: true });
-    p.unref();
-    await new Promise((r) => setTimeout(r, 2000));
+    const ollamaApp = path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Ollama', 'ollama app.exe');
+    if (fs.existsSync(ollamaApp)) {
+      const p = spawn(ollamaApp, [], { detached: true, stdio: 'ignore' });
+      p.unref();
+    } else {
+      const p = spawn('ollama', ['serve'], { detached: true, stdio: 'ignore', shell: true });
+      p.unref();
+    }
+    await new Promise((r) => setTimeout(r, 3000));
     const base = (store.settings.ollamaUrl || 'http://localhost:11434').replace(/\/+$/, '');
     const r = await fetch(base + '/api/tags', { signal: AbortSignal.timeout(3000) });
     return { ok: r.ok };
