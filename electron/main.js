@@ -284,7 +284,27 @@ app.whenReady().then(() => {
   }, 5000);
 
   setTimeout(() => checkOllama(), 3000);
+  setTimeout(() => autoScanLibraries(), 4000);
 });
+
+function autoScanLibraries() {
+  try {
+    const steam = scanSteamGames();
+    const epic = scanEpicGames();
+    const gog = scanGogGames();
+    const haveSteam = new Set(store.games.filter((g) => g.type === 'steam').map((g) => g.appid));
+    const haveEpic = new Set(store.games.filter((g) => g.type === 'epic').map((g) => g.appid));
+    const haveGog = new Set(store.games.filter((g) => g.type === 'gog').map((g) => g.appid));
+    const newGames = [
+      ...(steam.games || []).filter((g) => !haveSteam.has(g.appid)),
+      ...(epic.games || []).filter((g) => !haveEpic.has(g.appid)),
+      ...(gog.games || []).filter((g) => !haveGog.has(g.appid)),
+    ];
+    if (newGames.length > 0) {
+      send('new-games-found', { count: newGames.length });
+    }
+  } catch (e) { console.error('auto-scan failed', e); }
+}
 
 async function checkOllama() {
   const base = (store.settings.ollamaUrl || 'http://localhost:11434').replace(/\/+$/, '');

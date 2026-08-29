@@ -40,7 +40,7 @@ contextBridge.exposeInMainWorld('vaultix', {
   backupSaves: (gameId, gameName, paths) => ipcRenderer.invoke('backup-saves', { gameId, gameName, paths }),
   startOllama: () => ipcRenderer.invoke('start-ollama'),
   on: (channel, cb) => {
-    const allowed = ['session-started', 'session-ended', 'achievement-unlocked', 'achievements-changed', 'update-status', 'screenshot-taken', 'session-alert', 'ollama-not-running'];
+    const allowed = ['session-started', 'session-ended', 'achievement-unlocked', 'achievements-changed', 'update-status', 'screenshot-taken', 'session-alert', 'ollama-not-running', 'new-games-found'];
     if (allowed.includes(channel)) ipcRenderer.on(channel, (e, data) => cb(data));
   },
 });

@@ -992,6 +992,11 @@ el('filter-collection').onchange = () => renderLibrary();
 el('filter-tag').onchange = () => renderLibrary();
 el('sort-by').onchange = () => renderLibrary();
 
+// ---------- auto-scan on launch ----------
+V.on('new-games-found', (info) => {
+  toast(`${info.count} new game(s) detected — click Scan libraries to add them`, 6000);
+});
+
 // ---------- ollama prompt ----------
 V.on('ollama-not-running', () => {
   el('ollama-banner').classList.remove('hidden');
