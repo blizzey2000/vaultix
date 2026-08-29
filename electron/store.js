@@ -20,6 +20,10 @@ const DEFAULT_SETTINGS = {
   weeklyGoalMinutes: 0,
   discordRpc: false,
   discordClientId: '',
+  sessionAlertMinutes: 0,
+  backupDrivePath: 'G:\\VaultixSaves',
+  googleDrivePath: '',
+  homeWidgets: ['streak', 'friends', 'recent', 'all'],
 };
 
 const GAME_DEFAULTS = {
@@ -32,6 +36,8 @@ const GAME_DEFAULTS = {
   rating: 0,
   tags: [],
   collection: '',
+  notes: '',
+  savePaths: [],
 };
 
 class Store {

@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('vaultix', {
   getState: () => ipcRenderer.invoke('get-state'),
   saveSettings: (s) => ipcRenderer.invoke('save-settings', s),
   pickFile: (opts) => ipcRenderer.invoke('pick-file', opts),
+  pickFolder: () => ipcRenderer.invoke('pick-folder'),
   importCover: (p) => ipcRenderer.invoke('import-cover', p),
   addExeGame: (g) => ipcRenderer.invoke('add-exe-game', g),
   scanLibraries: () => ipcRenderer.invoke('scan-libraries'),
@@ -35,8 +36,10 @@ contextBridge.exposeInMainWorld('vaultix', {
   openScreenshot: (filepath) => ipcRenderer.invoke('open-screenshot', filepath),
   getSteamFriends: () => ipcRenderer.invoke('get-steam-friends'),
   getStreak: () => ipcRenderer.invoke('get-streak'),
+  findSavePaths: (name) => ipcRenderer.invoke('find-save-paths', { name }),
+  backupSaves: (gameId, gameName, paths) => ipcRenderer.invoke('backup-saves', { gameId, gameName, paths }),
   on: (channel, cb) => {
-    const allowed = ['session-started', 'session-ended', 'achievement-unlocked', 'achievements-changed', 'update-status', 'screenshot-taken'];
+    const allowed = ['session-started', 'session-ended', 'achievement-unlocked', 'achievements-changed', 'update-status', 'screenshot-taken', 'session-alert'];
     if (allowed.includes(channel)) ipcRenderer.on(channel, (e, data) => cb(data));
   },
 });

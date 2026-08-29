@@ -49,6 +49,9 @@ const V = window.vaultix || (() => {
       { steamId: '3', name: 'AFK_Andy', avatar: '', status: 0, gameName: null, gameId: null },
     ] }),
     getStreak: async () => ({ streak: 3, weeklyMinutes: 210, goalMinutes: 600 }),
+    findSavePaths: async () => ({ ok: true, paths: ['%APPDATA%\\GameSaves'], notes: 'mock' }),
+    backupSaves: async () => ({ ok: true, backed: 3, errors: [], destinations: ['G:\\VaultixSaves'] }),
+    pickFolder: async () => null,
     on: () => {},
   };
 })();
@@ -245,10 +248,13 @@ async function renderFriends() {
 
 function renderHome() {
   const games = sortedGames();
+  const w = state.settings.homeWidgets || ['streak', 'friends', 'recent', 'all'];
   el('home-empty').classList.toggle('hidden', games.length > 0);
   el('home-count').textContent = games.length ? `(${games.length})` : '';
-  renderStreakAndGoal();
-  renderFriends();
+  el('home-streak').classList.toggle('hidden', !w.includes('streak'));
+  el('home-friends-row').style.display = w.includes('friends') ? '' : 'none';
+  if (w.includes('streak')) renderStreakAndGoal();
+  if (w.includes('friends')) renderFriends();
 
   const featured = games[0];
   const hero = el('home-hero');
@@ -265,16 +271,23 @@ function renderHome() {
     el('hh-play').onclick = () => launch(featured.id);
   } else hero.classList.add('hidden');
 
-  const recent = games.slice(0, 12);
-  el('home-recent').innerHTML = recent.map((g) => `
-    <div class="rail-item card" data-id="${g.id}">
-      ${runningIds().includes(g.id) ? '<span class="running-dot"></span>' : ''}
-      ${coverHtml(g)}<div class="cap">${escapeHtml(g.name)}</div>
-    </div>`).join('');
-  wireCards(el('home-recent'));
+  el('home-recent-row').style.display = w.includes('recent') ? '' : 'none';
+  el('home-all-row').style.display = w.includes('all') ? '' : 'none';
 
-  el('home-grid').innerHTML = games.map((g, i) => cardHtml(g, i)).join('');
-  wireCards(el('home-grid'));
+  if (w.includes('recent')) {
+    const recent = games.slice(0, 12);
+    el('home-recent').innerHTML = recent.map((g) => `
+      <div class="rail-item card" data-id="${g.id}">
+        ${runningIds().includes(g.id) ? '<span class="running-dot"></span>' : ''}
+        ${coverHtml(g)}<div class="cap">${escapeHtml(g.name)}</div>
+      </div>`).join('');
+    wireCards(el('home-recent'));
+  }
+
+  if (w.includes('all')) {
+    el('home-grid').innerHTML = games.map((g, i) => cardHtml(g, i)).join('');
+    wireCards(el('home-grid'));
+  }
 }
 
 function renderLibrary() {
@@ -349,7 +362,7 @@ async function openDetail(id) {
     ? `${fmtPlaytime(g.steamPlaytimeMinutes)} on Steam + ${fmtPlaytime(g.playtimeMinutes)} tracked here`
     : `${fmtPlaytime(g.playtimeMinutes)} tracked here`;
   el('d-launches').textContent = g.launchCount || 0;
-  el('d-type').textContent = g.type === 'steam' ? 'Steam' : g.type === 'epic' ? 'Epic' : 'Executable';
+  el('d-type').textContent = g.type === 'steam' ? 'Steam' : g.type === 'epic' ? 'Epic' : g.type === 'gog' ? 'GOG' : 'Executable';
   el('d-desc').textContent = g.description || 'No description yet. Hit "AI describe" to generate one locally with Ollama.';
   el('d-desc').classList.toggle('empty', !g.description);
   el('d-image').value = g.imageName || '';
@@ -363,6 +376,12 @@ async function openDetail(id) {
 
   // collection
   el('d-collection').value = g.collection || '';
+
+  // notes
+  el('d-notes').value = g.notes || '';
+
+  // save paths
+  renderSavePaths(g);
 
   // tags
   renderTags(g);
@@ -541,11 +560,11 @@ el('a-confirm').onclick = async () => {
 // ---------- wire: scan libraries ----------
 el('btn-scan').onclick = async () => {
   el('modal-scan').classList.remove('hidden');
-  el('scan-status').textContent = 'Scanning Steam and Epic…';
+  el('scan-status').textContent = 'Scanning Steam, Epic, and GOG…';
   el('scan-list').innerHTML = '';
   const res = await V.scanLibraries();
   const seen = new Set();
-  scanCandidates = [...(res.newSteam || []), ...(res.newEpic || [])]
+  scanCandidates = [...(res.newSteam || []), ...(res.newEpic || []), ...(res.newGog || [])]
     .filter((g) => { const k = g.type + ':' + g.appid; if (seen.has(k)) return false; seen.add(k); return true; });
   if (!scanCandidates.length) {
     el('scan-status').textContent = (res.errors && res.errors.length ? res.errors.join(' · ') + ' — ' : '') + 'No new games found.';
@@ -598,6 +617,14 @@ el('btn-settings').onclick = async () => {
   el('set-weeklygoal').value = Math.round((s.weeklyGoalMinutes || 0) / 60);
   el('set-discord').checked = !!s.discordRpc;
   el('set-discordid').value = s.discordClientId || '';
+  el('set-sessionalert').value = s.sessionAlertMinutes || 0;
+  el('set-backupdrive').value = s.backupDrivePath || 'G:\\VaultixSaves';
+  el('set-gdrive').value = s.googleDrivePath || '';
+  const w = s.homeWidgets || ['streak', 'friends', 'recent', 'all'];
+  el('set-w-streak').checked = w.includes('streak');
+  el('set-w-friends').checked = w.includes('friends');
+  el('set-w-recent').checked = w.includes('recent');
+  el('set-w-all').checked = w.includes('all');
   el('set-ollamaurl').value = s.ollamaUrl || 'http://localhost:11434';
   el('set-ollamamodel').value = s.ollamaModel || 'qwen2.5:3b';
   el('modal-settings').classList.remove('hidden');
@@ -644,6 +671,8 @@ el('set-checkupdate').onclick = async () => {
     el('set-update-status').textContent = 'You\'re on the latest version!';
   }
 };
+el('set-backupdrive-pick').onclick = async () => { const p = await V.pickFolder(); if (p) el('set-backupdrive').value = p; };
+el('set-gdrive-pick').onclick = async () => { const p = await V.pickFolder(); if (p) el('set-gdrive').value = p; };
 el('set-steam-link').onclick = () => { window.open('https://steamcommunity.com/dev/apikey', '_blank'); };
 el('set-discord-link').onclick = () => { window.open('https://discord.com/developers/applications', '_blank'); };
 el('set-steamid-detect').onclick = async () => {
@@ -674,6 +703,10 @@ el('set-save').onclick = async () => {
     weeklyGoalMinutes: Math.max(0, parseInt(el('set-weeklygoal').value, 10) || 0) * 60,
     discordRpc: el('set-discord').checked,
     discordClientId: el('set-discordid').value.trim(),
+    sessionAlertMinutes: Math.max(0, parseInt(el('set-sessionalert').value, 10) || 0),
+    backupDrivePath: el('set-backupdrive').value.trim(),
+    googleDrivePath: el('set-gdrive').value.trim(),
+    homeWidgets: ['streak', 'friends', 'recent', 'all'].filter((k) => el('set-w-' + k).checked),
     ollamaUrl: el('set-ollamaurl').value.trim() || 'http://localhost:11434',
     ollamaModel: el('set-ollamamodel').value.trim() || 'qwen2.5:3b',
   });
@@ -707,7 +740,19 @@ V.on('session-started', ({ gameId, startedAt }) => {
 V.on('session-ended', (info) => {
   state.running = state.running.filter((r) => r.id !== info.gameId);
   toast(`${info.name || 'Session'} — +${info.minutes} min · ${fmtPlaytime(info.totalMinutes)} total`, 5000);
+  // post-game summary modal
+  if (info.minutes >= 1) {
+    el('pg-name').textContent = info.name || 'Unknown';
+    el('pg-session').textContent = fmtPlaytime(info.minutes);
+    el('pg-total').textContent = fmtPlaytime(info.totalMinutes);
+    const g = state.games.find((x) => x.id === info.gameId);
+    el('pg-launches').textContent = g ? (g.launchCount || 0) : '—';
+    el('modal-postgame').classList.remove('hidden');
+  }
   refresh();
+});
+V.on('session-alert', (info) => {
+  toast(`${info.name}: ${info.minutes} minutes played`, 4000);
 });
 V.on('achievement-unlocked', (a) => {
   showAchievementBanner(a);
@@ -894,6 +939,52 @@ el('d-ss-take').onclick = async () => {
   if (r && r.ok) { toast('Screenshot captured!'); renderScreenshots(selectedId); }
   else toast('Screenshot failed');
 };
+
+// ---------- notes ----------
+el('d-notes-save').onclick = async () => {
+  if (!selectedId) return;
+  await V.updateGame({ id: selectedId, notes: el('d-notes').value });
+  toast('Notes saved');
+};
+
+// ---------- save backup ----------
+function renderSavePaths(g) {
+  const box = el('d-save-paths');
+  if (!g.savePaths || !g.savePaths.length) {
+    box.innerHTML = '<p class="hint">No save paths known. Click "Backup saves" to auto-detect with AI.</p>';
+    el('d-backup-status').textContent = '';
+    return;
+  }
+  box.innerHTML = g.savePaths.map((p) => `<div class="save-path-row"><code>${escapeHtml(p)}</code></div>`).join('');
+}
+
+el('d-backup').onclick = async () => {
+  if (!selectedId) return;
+  const g = state.games.find((x) => x.id === selectedId);
+  if (!g) return;
+  const status = el('d-backup-status');
+
+  let paths = g.savePaths || [];
+  if (!paths.length) {
+    status.textContent = 'Asking AI for save locations...';
+    const res = await V.findSavePaths(g.name);
+    if (!res.ok) { status.textContent = 'AI error: ' + res.error; return; }
+    paths = res.paths;
+    if (!paths.length) { status.textContent = 'AI could not find save paths for this game.'; return; }
+    status.textContent = `Found ${paths.length} path(s)${res.notes ? ': ' + res.notes : ''}. Backing up...`;
+  } else {
+    status.textContent = 'Backing up...';
+  }
+
+  const res = await V.backupSaves(g.id, g.name, paths);
+  if (!res.ok) { status.textContent = 'Backup failed: ' + res.error; return; }
+  const errs = res.errors.length ? ` (${res.errors.length} path(s) not found)` : '';
+  status.textContent = `Backed up ${res.backed} file(s) to ${res.destinations.length} location(s)${errs}`;
+  await refresh();
+};
+
+// ---------- post-game summary ----------
+el('pg-close').onclick = () => el('modal-postgame').classList.add('hidden');
 
 // ---------- library filters ----------
 el('filter-collection').onchange = () => renderLibrary();

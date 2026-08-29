@@ -347,6 +347,26 @@ body.bigpicture .card .cap { opacity: 1; transform: none; }
 /* ---------- COLLECTION BADGES ---------- */
 .card .coll-badge { position: absolute; bottom: 7px; left: 7px; background: rgba(0,0,0,.62); font-size: 9px; padding: 2px 6px; border-radius: 4px; backdrop-filter: blur(2px); z-index: 3; }
 
+/* ---------- POST-GAME SUMMARY ---------- */
+.postgame-card { text-align: center; }
+.postgame-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 20px 0; }
+.pg-stat { display: flex; flex-direction: column; gap: 4px; background: rgba(255,255,255,.04); border-radius: 10px; padding: 14px; }
+.pg-stat .k { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); }
+.pg-stat .v { font-size: 18px; font-weight: 700; }
+
+/* ---------- NOTES ---------- */
+#d-notes { min-height: 80px; }
+
+/* ---------- SAVE BACKUP ---------- */
+.save-paths { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.save-path-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); padding: 4px 0; }
+.save-path-row .sp-status { font-size: 11px; }
+.save-path-row .sp-status.found { color: var(--ok); }
+.save-path-row .sp-status.missing { color: var(--danger); }
+
+/* ---------- WIDGET TOGGLES ---------- */
+.widget-toggles { display: flex; flex-wrap: wrap; gap: 10px 18px; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }

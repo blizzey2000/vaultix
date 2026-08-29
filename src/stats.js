@@ -18,9 +18,15 @@
       if (days.has(k)) streak++;
       else if (i > 0) break;
     }
+    const totalSessions = sessions.length;
+    const avgMin = totalSessions ? Math.round(sessions.reduce((a, s) => a + s.minutes, 0) / totalSessions) : 0;
+    const longestSession = sessions.length ? Math.max(...sessions.map((s) => s.minutes)) : 0;
+    const gamesPlayed = new Set(sessions.map((s) => s.gameId)).size;
     const card = (k, v) => `<div class="stat-card"><span class="k">${k}</span><span class="v">${v}</span></div>`;
     return card('This week', fmt(wk)) + card('This month', fmt(mo)) +
-           card('All time', fmt(all)) + card('Day streak', streak);
+           card('All time', fmt(all)) + card('Day streak', streak) +
+           card('Avg session', fmt(avgMin)) + card('Longest session', fmt(longestSession)) +
+           card('Total sessions', totalSessions) + card('Games played', gamesPlayed);
   }
 
   function heatmapSvg(sessions) {
@@ -89,10 +95,34 @@
     }).join('');
   }
 
+  function weeklyBarSvg(sessions) {
+    const now = Date.now();
+    const weeks = 12;
+    const buckets = new Array(weeks).fill(0);
+    for (const s of sessions) {
+      const weeksAgo = Math.floor((now - s.start) / (7 * DAY));
+      if (weeksAgo >= 0 && weeksAgo < weeks) buckets[weeks - 1 - weeksAgo] += s.minutes;
+    }
+    const max = Math.max(60, ...buckets);
+    const w = 500, h = 120, barW = w / weeks - 6;
+    let bars = '';
+    for (let i = 0; i < weeks; i++) {
+      const bh = (buckets[i] / max) * (h - 20);
+      const x = i * (barW + 6) + 3;
+      const y = h - bh - 16;
+      bars += `<rect x="${x}" y="${y}" width="${barW}" height="${bh}" rx="3" fill="var(--accent)" fill-opacity="${buckets[i] ? 0.7 : 0.15}"><title>Week ${weeks - i}: ${fmt(buckets[i])}</title></rect>`;
+      const label = i === weeks - 1 ? 'now' : (i === weeks - 2 ? '-1w' : '');
+      if (label) bars += `<text x="${x + barW / 2}" y="${h - 2}" fill="var(--muted)" font-size="9" text-anchor="middle">${label}</text>`;
+    }
+    return `<svg viewBox="0 0 ${w} ${h}" width="100%" style="max-width:${w}px" preserveAspectRatio="none">${bars}</svg>`;
+  }
+
   window.Stats = {
     render(games, sessions) {
       document.getElementById('stats-totals').innerHTML = totalsHtml(games, sessions);
       document.getElementById('stats-heatmap').innerHTML = heatmapSvg(sessions);
+      const weekly = document.getElementById('stats-weekly');
+      if (weekly) weekly.innerHTML = weeklyBarSvg(sessions);
       const top = document.getElementById('stats-top');
       top.innerHTML = topSvg(games);
       top.querySelectorAll('.bar-row').forEach((r) => {

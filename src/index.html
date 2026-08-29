@@ -58,11 +58,11 @@
         <h3>Friends online</h3>
         <div id="home-friends" class="rail"></div>
       </div>
-      <div class="home-row">
+      <div class="home-row" id="home-recent-row">
         <h3>Jump back in</h3>
         <div id="home-recent" class="rail"></div>
       </div>
-      <div class="home-row">
+      <div class="home-row" id="home-all-row">
         <h3>All games <span id="home-count" class="muted-count"></span></h3>
         <div id="home-grid" class="grid"></div>
       </div>
@@ -115,6 +115,10 @@
       <div class="stats-block">
         <h3>Activity</h3>
         <div id="stats-heatmap"></div>
+      </div>
+      <div class="stats-block">
+        <h3>Weekly playtime</h3>
+        <div id="stats-weekly"></div>
       </div>
       <div class="stats-block">
         <h3>Most played</h3>
@@ -177,6 +181,21 @@
             <div id="d-tags" class="tags-box"></div>
             <input id="d-tag-input" type="text" class="tag-input" placeholder="Add tag + Enter" />
           </div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-section-head">
+            <h3>Notes</h3>
+          </div>
+          <textarea id="d-notes" rows="4" placeholder="Write notes, journal entries, strategies..."></textarea>
+          <button id="d-notes-save" class="mini" style="margin-top:6px">Save notes</button>
+        </div>
+        <div class="detail-section">
+          <div class="detail-section-head">
+            <h3>Save Backup</h3>
+            <button id="d-backup" class="mini">💾 Backup saves</button>
+          </div>
+          <div id="d-backup-status" class="hint"></div>
+          <div id="d-save-paths" class="save-paths"></div>
         </div>
         <div class="detail-section" id="d-steam-ach-section" style="display:none">
           <div class="detail-section-head">
@@ -309,6 +328,22 @@
       <hr />
       <label>Screenshot hotkey<input id="set-sshotkey" type="text" placeholder="F12" /></label>
       <label>Weekly playtime goal (hours, 0 = off)<input id="set-weeklygoal" type="number" min="0" value="0" /></label>
+      <label>Session alert (minutes, 0 = off) — remind you how long you've been playing<input id="set-sessionalert" type="number" min="0" value="0" /></label>
+      <hr />
+      <label>Save backup drive path
+        <div class="row"><input id="set-backupdrive" type="text" placeholder="G:\VaultixSaves" /><button id="set-backupdrive-pick" class="mini">Browse</button></div>
+      </label>
+      <label>Google Drive folder path (leave empty to skip)
+        <div class="row"><input id="set-gdrive" type="text" placeholder="C:\Users\you\Google Drive" /><button id="set-gdrive-pick" class="mini">Browse</button></div>
+      </label>
+      <hr />
+      <label>Home page widgets</label>
+      <div class="widget-toggles">
+        <label class="check"><input id="set-w-streak" type="checkbox" /> Streak &amp; Goals</label>
+        <label class="check"><input id="set-w-friends" type="checkbox" /> Friends online</label>
+        <label class="check"><input id="set-w-recent" type="checkbox" /> Jump back in</label>
+        <label class="check"><input id="set-w-all" type="checkbox" /> All games grid</label>
+      </div>
       <hr />
       <label class="check"><input id="set-discord" type="checkbox" /> Discord Rich Presence (show what you're playing)</label>
       <label>Discord Application ID <small><a id="set-discord-link" style="color:var(--accent);cursor:pointer">Create one</a></small>
@@ -334,6 +369,22 @@
       <div class="modal-actions">
         <button id="set-cancel">Cancel</button>
         <button id="set-save" class="primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Post-game summary modal -->
+  <div id="modal-postgame" class="modal hidden">
+    <div class="modal-card postgame-card">
+      <h2>Session Complete</h2>
+      <div class="postgame-stats">
+        <div class="pg-stat"><span class="k">Game</span><span id="pg-name" class="v">—</span></div>
+        <div class="pg-stat"><span class="k">This session</span><span id="pg-session" class="v">—</span></div>
+        <div class="pg-stat"><span class="k">Total playtime</span><span id="pg-total" class="v">—</span></div>
+        <div class="pg-stat"><span class="k">Total launches</span><span id="pg-launches" class="v">—</span></div>
+      </div>
+      <div class="modal-actions">
+        <button id="pg-close" class="primary">Nice</button>
       </div>
     </div>
   </div>

@@ -79,4 +79,40 @@ async function listModels(ollamaUrl) {
   }
 }
 
-module.exports = { describeGame, listModels };
+async function findSavePaths({ name, ollamaUrl, ollamaModel }) {
+  if (!name || !name.trim()) return { ok: false, error: 'no name' };
+  const base = (ollamaUrl || 'http://localhost:11434').replace(/\/+$/, '');
+  const model = ollamaModel || 'qwen2.5:3b';
+
+  const prompt =
+    `You are a PC gaming expert. For the Windows PC game "${name}", tell me where it stores its save files. ` +
+    `Reply with ONLY minified JSON, no markdown, in this exact shape:\n` +
+    `{"paths":["C:\\\\Users\\\\%USERNAME%\\\\...","..."],"notes":"brief note about save structure"}\n` +
+    `Use %USERNAME%, %APPDATA%, %LOCALAPPDATA%, %USERPROFILE%, %PROGRAMDATA% environment variables where appropriate. ` +
+    `Include all known save locations (Steam cloud local cache, registry saves, AppData, Documents, game folder). ` +
+    `If unsure, set paths to an empty array. Do not add any text outside the JSON.`;
+
+  let res;
+  try {
+    res = await fetch(base + '/api/generate', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model, prompt, stream: false, format: 'json', options: { temperature: 0.2 } }),
+    });
+  } catch (e) {
+    return { ok: false, error: `Cannot reach Ollama at ${base}` };
+  }
+  if (!res.ok) return { ok: false, error: `Ollama ${res.status}` };
+
+  const data = await res.json();
+  const raw = (data.response || '').trim();
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch (e) {
+    const m = raw.match(/\{[\s\S]*\}/);
+    if (m) { try { parsed = JSON.parse(m[0]); } catch (_) {} }
+  }
+  if (!parsed || !Array.isArray(parsed.paths)) return { ok: false, error: 'AI returned invalid format' };
+  return { ok: true, paths: parsed.paths, notes: parsed.notes || '' };
+}
+
+module.exports = { describeGame, listModels, findSavePaths };

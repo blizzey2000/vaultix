@@ -10,7 +10,8 @@ const { spawn, exec } = require('child_process');
 const { Store } = require('./store');
 const { scanSteamGames, readSteamPlaytime, findSteamRoot } = require('./steam');
 const { scanEpicGames } = require('./epic');
-const { describeGame, listModels } = require('./ai');
+const { describeGame, listModels, findSavePaths } = require('./ai');
+const { scanGogGames } = require('./gog');
 const { evaluate: evalAchievements } = require('./achievements');
 const { detectSteamId, getGameAchievements, fetchPlayerAchievements, getSteamFriends } = require('./steam-achievements');
 const { DiscordRPC } = require('./discord-rpc');
@@ -49,9 +50,11 @@ let win;
 let overlay;
 let tray;
 let isQuitting = false;
-const sessions = new Map(); // gameId -> { startedAt, pid, watcher }
+const sessions = new Map(); // gameId -> { startedAt, pid, watcher, alertTimer }
 const discord = new DiscordRPC();
 let screenshotHotkeyRegistered = false;
+const backupsDir = path.join(dataDir, 'backups');
+fs.mkdirSync(backupsDir, { recursive: true });
 
 // single instance
 const gotLock = app.requestSingleInstanceLock();
@@ -292,6 +295,7 @@ function finalizeSession(gameId) {
   const s = sessions.get(gameId);
   if (!s) return;
   if (s.watcher) clearInterval(s.watcher);
+  if (s.alertTimer) clearInterval(s.alertTimer);
   const end = Date.now();
   const minutes = Math.max(0, Math.round((end - s.startedAt) / 60000));
   const games = store.games;
@@ -405,18 +409,35 @@ ipcMain.handle('add-exe-game', (e, game) => {
   return entry;
 });
 
-// combined scan: steam + epic, filtered against what's already in the library
+// ---------- session alerts ----------
+function startSessionAlert(gameId, gameName) {
+  const mins = store.settings.sessionAlertMinutes;
+  if (!mins || mins <= 0) return;
+  const s = sessions.get(gameId);
+  if (!s) return;
+  s.alertTimer = setInterval(() => {
+    const elapsed = Math.round((Date.now() - s.startedAt) / 60000);
+    send('session-alert', { gameId, name: gameName, minutes: elapsed });
+    showOverlay({ icon: '⏰', name: `${gameName}`, desc: `You've been playing for ${elapsed} minutes` });
+  }, mins * 60000);
+}
+
+// combined scan: steam + epic + gog, filtered against what's already in the library
 ipcMain.handle('scan-libraries', () => {
   const steam = scanSteamGames();
   const epic = scanEpicGames();
+  const gog = scanGogGames();
   const haveSteam = new Set(store.games.filter((g) => g.type === 'steam').map((g) => g.appid));
   const haveEpic = new Set(store.games.filter((g) => g.type === 'epic').map((g) => g.appid));
+  const haveGog = new Set(store.games.filter((g) => g.type === 'gog').map((g) => g.appid));
   return {
     steamRoot: steam.steamRoot,
     epicDir: epic.epicDir,
-    errors: [steam.error, epic.error].filter(Boolean),
+    gogDir: gog.gogDir,
+    errors: [steam.error, epic.error, gog.error].filter(Boolean),
     newSteam: (steam.games || []).filter((g) => !haveSteam.has(g.appid)),
     newEpic: (epic.games || []).filter((g) => !haveEpic.has(g.appid)),
+    newGog: (gog.games || []).filter((g) => !haveGog.has(g.appid)),
   };
 });
 
@@ -516,6 +537,15 @@ ipcMain.handle('launch-game', async (e, id) => {
       sessions.set(id, { startedAt: Date.now(), pid: null });
       const imgName = g.imageName || path.basename(g.exePath);
       if (imgName) watchImage(id, imgName);
+    } else if (g.type === 'gog') {
+      if (g.exePath && fs.existsSync(g.exePath)) {
+        const err = await shell.openPath(g.exePath);
+        if (err) return { ok: false, error: err };
+      } else {
+        shell.openExternal(`goggalaxy://openGameView/${g.appid}`);
+      }
+      sessions.set(id, { startedAt: Date.now(), pid: null });
+      if (g.imageName) watchImage(id, g.imageName);
     } else if (g.type === 'epic') {
       shell.openExternal(g.launchUrl || `com.epicgames.launcher://apps/${g.appid}?action=launch&silent=true`);
       sessions.set(id, { startedAt: Date.now(), pid: null });
@@ -533,6 +563,7 @@ ipcMain.handle('launch-game', async (e, id) => {
     if (g.type === 'steam' && g.appid) startSteamAchievementPolling(id, g.appid);
     registerScreenshotHotkey();
     startDiscord(g.name, Date.now());
+    startSessionAlert(id, g.name);
     send('session-started', { gameId: id, startedAt: Date.now() });
     if (store.settings.minimizeOnPlay && win && !win.isDestroyed()) {
       setTimeout(() => { if (sessions.has(id)) win.hide(); }, 1200);
@@ -771,6 +802,82 @@ ipcMain.handle('get-steam-friends', async () => {
   if (!apiKey || !steamId) return { ok: false, error: 'Steam API key or ID not set' };
   const friends = await getSteamFriends(apiKey, steamId);
   return { ok: true, friends };
+});
+
+// ---------- save file backup ----------
+function expandEnvPath(p) {
+  return p.replace(/%([^%]+)%/g, (_, k) => process.env[k] || `%${k}%`);
+}
+
+function copyDirRecursive(src, dest) {
+  fs.mkdirSync(dest, { recursive: true });
+  let count = 0;
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    const s = path.join(src, entry.name);
+    const d = path.join(dest, entry.name);
+    if (entry.isDirectory()) {
+      count += copyDirRecursive(s, d);
+    } else {
+      fs.copyFileSync(s, d);
+      count++;
+    }
+  }
+  return count;
+}
+
+ipcMain.handle('find-save-paths', async (e, { name }) => {
+  const { ollamaUrl, ollamaModel } = store.settings;
+  return findSavePaths({ name, ollamaUrl, ollamaModel });
+});
+
+ipcMain.handle('backup-saves', async (e, { gameId, gameName, paths }) => {
+  const results = { backed: 0, errors: [], destinations: [] };
+  const safeName = gameName.replace(/[<>:"/\\|?*]/g, '_');
+  const timestamp = new Date().toISOString().slice(0, 10);
+  const targets = [];
+  const drivePath = store.settings.backupDrivePath;
+  const gdrivePath = store.settings.googleDrivePath;
+  if (drivePath) targets.push(path.join(drivePath, safeName, timestamp));
+  if (gdrivePath) targets.push(path.join(gdrivePath, 'VaultixSaves', safeName, timestamp));
+
+  if (!targets.length) return { ok: false, error: 'No backup destinations configured. Set paths in Settings.' };
+
+  for (const savePath of paths) {
+    const expanded = expandEnvPath(savePath);
+    if (!fs.existsSync(expanded)) {
+      results.errors.push(`Not found: ${expanded}`);
+      continue;
+    }
+    const stat = fs.statSync(expanded);
+    for (const target of targets) {
+      try {
+        const basename = path.basename(expanded);
+        const dest = path.join(target, basename);
+        if (stat.isDirectory()) {
+          results.backed += copyDirRecursive(expanded, dest);
+        } else {
+          fs.mkdirSync(target, { recursive: true });
+          fs.copyFileSync(expanded, dest);
+          results.backed++;
+        }
+        if (!results.destinations.includes(target)) results.destinations.push(target);
+      } catch (err) {
+        results.errors.push(`${expanded} -> ${target}: ${err.message}`);
+      }
+    }
+  }
+
+  // store the paths on the game for future backups
+  const games = store.games;
+  const g = games.find((x) => x.id === gameId);
+  if (g) { g.savePaths = paths; store.games = games; }
+
+  return { ok: true, ...results };
+});
+
+ipcMain.handle('pick-folder', async () => {
+  const r = await dialog.showOpenDialog(win, { properties: ['openDirectory'] });
+  return r.canceled ? null : r.filePaths[0];
 });
 
 // ---------- streak / stats ----------
