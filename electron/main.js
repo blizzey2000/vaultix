@@ -650,8 +650,8 @@ ipcMain.handle('install-update', () => {
 ipcMain.handle('check-update', async () => {
   try {
     const r = await autoUpdater.checkForUpdates();
-    return r ? { version: r.updateInfo.version } : null;
-  } catch (e) { return null; }
+    return r ? { version: r.updateInfo.version } : { error: 'No response from update server' };
+  } catch (e) { return { error: e.message }; }
 });
 ipcMain.handle('get-version', () => app.getVersion());
 

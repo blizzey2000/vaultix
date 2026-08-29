@@ -636,8 +636,12 @@ el('set-theme').onchange = () => {
 el('set-checkupdate').onclick = async () => {
   el('set-update-status').textContent = 'Checking...';
   const r = await V.checkUpdate();
-  if (r && r.version) {
+  if (r && r.error) {
+    el('set-update-status').textContent = 'Update failed: ' + r.error;
+  } else if (r && r.version) {
     el('set-update-status').textContent = `Update v${r.version} available!`;
+  } else {
+    el('set-update-status').textContent = 'You\'re on the latest version!';
   }
 };
 el('set-steam-link').onclick = () => { window.open('https://steamcommunity.com/dev/apikey', '_blank'); };
