@@ -444,10 +444,27 @@ function syncActiveCards() {
 }
 window.gotoGame = (id) => { switchView('home'); openDetail(id); };
 
+function showLaunchAnimation(g) {
+  const bg = g.background || heroImageFor(g);
+  const ov = document.createElement('div');
+  ov.className = 'launch-overlay';
+  ov.innerHTML = `
+    <div class="launch-bg" style="background-image:url('${escapeAttr(bg)}')"></div>
+    <div class="launch-content">
+      <div class="launch-title">${escapeHtml(g.name)}</div>
+      <div class="launch-sub">Launching</div>
+      <div style="display:flex;justify-content:center;margin-top:18px"><div class="launch-ring"></div></div>
+      <div class="launch-bar"><div class="launch-bar-fill"></div></div>
+    </div>`;
+  document.body.appendChild(ov);
+  setTimeout(() => { ov.classList.add('out'); setTimeout(() => ov.remove(), 500); }, 2200);
+}
+
 async function launch(id) {
+  const g = state.games.find((x) => x.id === id);
+  if (g) showLaunchAnimation(g);
   const r = await V.launchGame(id);
-  if (!r.ok) return toast('Launch failed: ' + r.error);
-  toast('Launching…');
+  if (!r.ok) { document.querySelector('.launch-overlay')?.remove(); return toast('Launch failed: ' + r.error); }
   if (!runningIds().includes(id)) state.running.push({ id, startedAt: Date.now() });
   showNowPlaying();
   if (selectedId === id) openDetail(id);

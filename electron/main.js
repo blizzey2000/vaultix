@@ -94,6 +94,7 @@ function createWindow() {
     show: !startHidden,
     webPreferences: { preload: path.join(__dirname, 'preload.js') },
   });
+  win.setMenu(null);
   win.loadFile(path.join(__dirname, '..', 'src', 'index.html'));
 
   win.on('close', (e) => {
