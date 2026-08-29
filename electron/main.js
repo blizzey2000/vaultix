@@ -282,6 +282,30 @@ app.whenReady().then(() => {
   setTimeout(() => {
     try { autoUpdater.checkForUpdates(); } catch (e) { console.error('update check failed', e.message); }
   }, 5000);
+
+  setTimeout(() => checkOllama(), 3000);
+});
+
+async function checkOllama() {
+  const base = (store.settings.ollamaUrl || 'http://localhost:11434').replace(/\/+$/, '');
+  try {
+    const r = await fetch(base + '/api/tags', { signal: AbortSignal.timeout(3000) });
+    if (r.ok) return;
+  } catch (e) { /* not running */ }
+  send('ollama-not-running');
+}
+
+ipcMain.handle('start-ollama', async () => {
+  try {
+    const p = spawn('ollama', ['serve'], { detached: true, stdio: 'ignore', shell: true });
+    p.unref();
+    await new Promise((r) => setTimeout(r, 2000));
+    const base = (store.settings.ollamaUrl || 'http://localhost:11434').replace(/\/+$/, '');
+    const r = await fetch(base + '/api/tags', { signal: AbortSignal.timeout(3000) });
+    return { ok: r.ok };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
 });
 app.on('window-all-closed', () => { /* keep alive in tray */ });
 app.on('before-quit', () => { isQuitting = true; });

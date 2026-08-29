@@ -364,6 +364,10 @@ body.bigpicture .card .cap { opacity: 1; transform: none; }
 .save-path-row .sp-status.found { color: var(--ok); }
 .save-path-row .sp-status.missing { color: var(--danger); }
 
+/* ---------- OLLAMA BANNER ---------- */
+.ollama-banner { position: fixed; top: 57px; left: 0; right: 0; z-index: 45; display: flex; align-items: center; gap: 12px; padding: 10px 20px; background: linear-gradient(90deg, rgba(255,160,50,.12), rgba(255,120,20,.08)); border-bottom: 1px solid rgba(255,160,50,.3); font-size: 13px; color: #ffaa44; animation: fadeIn .3s ease; }
+.ollama-banner button { flex-shrink: 0; }
+
 /* ---------- WIDGET TOGGLES ---------- */
 .widget-toggles { display: flex; flex-wrap: wrap; gap: 10px 18px; }
 

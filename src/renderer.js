@@ -52,6 +52,7 @@ const V = window.vaultix || (() => {
     findSavePaths: async () => ({ ok: true, paths: ['%APPDATA%\\GameSaves'], notes: 'mock' }),
     backupSaves: async () => ({ ok: true, backed: 3, errors: [], destinations: ['G:\\VaultixSaves'] }),
     pickFolder: async () => null,
+    startOllama: async () => ({ ok: true }),
     on: () => {},
   };
 })();
@@ -990,6 +991,25 @@ el('pg-close').onclick = () => el('modal-postgame').classList.add('hidden');
 el('filter-collection').onchange = () => renderLibrary();
 el('filter-tag').onchange = () => renderLibrary();
 el('sort-by').onchange = () => renderLibrary();
+
+// ---------- ollama prompt ----------
+V.on('ollama-not-running', () => {
+  el('ollama-banner').classList.remove('hidden');
+});
+el('ollama-start').onclick = async () => {
+  el('ollama-start').textContent = 'Starting...';
+  el('ollama-start').disabled = true;
+  const r = await V.startOllama();
+  if (r.ok) {
+    el('ollama-banner').classList.add('hidden');
+    toast('Ollama started successfully');
+  } else {
+    el('ollama-start').textContent = 'Start Ollama';
+    el('ollama-start').disabled = false;
+    toast('Could not start Ollama — make sure it\'s installed', 4000);
+  }
+};
+el('ollama-dismiss').onclick = () => el('ollama-banner').classList.add('hidden');
 
 // ---------- splash screen ----------
 function dismissSplash() {
