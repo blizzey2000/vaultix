@@ -2,11 +2,56 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' file: data: https:; style-src 'self' 'unsafe-inline';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' file: data: https:; style-src 'self' 'unsafe-inline'; frame-src https://www.youtube-nocookie.com;" />
   <title>Vaultix</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <!-- SVG Icon Sprite Sheet -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+    <symbol id="ico-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </symbol>
+    <symbol id="ico-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>
+    </symbol>
+    <symbol id="ico-sparkle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
+    </symbol>
+    <symbol id="ico-save" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/>
+    </symbol>
+    <symbol id="ico-music" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+    </symbol>
+    <symbol id="ico-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>
+    </symbol>
+    <symbol id="ico-palette" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="7.5" r="1.5"/><circle cx="6.5" cy="12.5" r="1.5"/>
+      <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>
+    </symbol>
+    <symbol id="ico-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/>
+    </symbol>
+    <symbol id="ico-play" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+      <path d="M6 4l15 8-15 8V4z"/>
+    </symbol>
+    <symbol id="ico-stop" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+      <rect x="4" y="4" width="16" height="16" rx="2"/>
+    </symbol>
+    <symbol id="ico-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 18l-6-6 6-6"/>
+    </symbol>
+    <symbol id="ico-more" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+      <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
+    </symbol>
+    <symbol id="ico-gamepad" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h4M8 10v4"/><circle cx="17" cy="10" r="1"/><circle cx="15" cy="13" r="1"/>
+    </symbol>
+  </svg>
+
   <!-- SPLASH SCREEN -->
   <div id="splash">
     <div class="splash-inner">
@@ -30,8 +75,13 @@
     <input id="search" type="search" placeholder="Search..." />
     <div class="spacer"></div>
     <button id="btn-add">+ Add game</button>
-    <button id="btn-scan">Scan libraries</button>
-    <button id="btn-settings" title="Settings">⚙</button>
+    <div class="ctx-anchor">
+      <button id="btn-settings" class="ctx-trigger" title="Settings"><svg class="ico"><use href="#ico-settings"/></svg></button>
+      <div id="topbar-menu" class="ctx-menu hidden">
+        <button id="btn-scan" class="ctx-item"><svg class="ico"><use href="#ico-refresh"/></svg> Scan libraries</button>
+        <button id="topbar-settings-item" class="ctx-item"><svg class="ico"><use href="#ico-settings"/></svg> Settings</button>
+      </div>
+    </div>
   </header>
 
   <main>
@@ -44,7 +94,7 @@
           <img id="hh-logo" class="hh-logo hidden" alt="" />
           <h1 id="hh-name"></h1>
           <div id="hh-meta" class="hh-meta"></div>
-          <button id="hh-play" class="d-play"><span class="d-play-icon">▶</span> Play</button>
+          <button id="hh-play" class="d-play"><svg class="ico ico-play"><use href="#ico-play"/></svg> Play</button>
         </div>
       </div>
       <div id="home-streak" class="home-streak hidden">
@@ -109,7 +159,7 @@
     <section id="stats" class="view hidden">
       <div class="stats-head">
         <h2>Playtime</h2>
-        <button id="stats-sync" class="mini">⟳ Sync Steam playtime</button>
+        <button id="stats-sync" class="mini"><svg class="ico"><use href="#ico-refresh"/></svg> Sync Steam playtime</button>
       </div>
       <div id="stats-totals" class="stats-totals"></div>
       <div class="stats-block">
@@ -132,7 +182,7 @@
     <div class="detail-hero">
       <div id="d-hero-bg" class="detail-hero-bg"></div>
       <div class="detail-hero-scrim"></div>
-      <button id="d-back" class="d-back">‹ Back</button>
+      <button id="d-back" class="d-back"><svg class="ico"><use href="#ico-back"/></svg> Back</button>
       <button id="d-fav" class="d-fav" title="Favorite">☆</button>
       <div class="detail-hero-foot">
         <img id="d-logo" class="d-logo hidden" alt="" />
@@ -142,9 +192,9 @@
 
     <div class="detail-bar">
       <button id="d-play" class="d-play">
-        <span class="d-play-icon">▶</span><span id="d-play-label">Play</span>
+        <svg class="ico ico-play"><use href="#ico-play"/></svg><span id="d-play-label">Play</span>
       </button>
-      <button id="d-stop" class="d-stop hidden">■ Stop tracking</button>
+      <button id="d-stop" class="d-stop hidden"><svg class="ico"><use href="#ico-stop"/></svg> Stop</button>
       <div class="d-rating" id="d-rating">
         <span class="star" data-r="1">☆</span><span class="star" data-r="2">☆</span><span class="star" data-r="3">☆</span><span class="star" data-r="4">☆</span><span class="star" data-r="5">☆</span>
       </div>
@@ -161,7 +211,13 @@
         <div class="detail-section">
           <div class="detail-section-head">
             <h3>About</h3>
-            <button id="d-ai" class="mini">✨ AI describe (local)</button>
+            <div class="ctx-anchor">
+              <button id="d-about-more" class="mini ctx-trigger"><svg class="ico"><use href="#ico-more"/></svg></button>
+              <div id="d-about-menu" class="ctx-menu hidden">
+                <button id="d-fetch-meta" class="ctx-item"><svg class="ico"><use href="#ico-globe"/></svg> Fetch metadata</button>
+                <button id="d-ai" class="ctx-item"><svg class="ico"><use href="#ico-sparkle"/></svg> AI describe (local)</button>
+              </div>
+            </div>
           </div>
           <div id="d-desc" class="desc-box"></div>
         </div>
@@ -182,17 +238,19 @@
             <input id="d-tag-input" type="text" class="tag-input" placeholder="Add tag + Enter" />
           </div>
         </div>
-        <div class="detail-section">
-          <div class="detail-section-head">
+        <div class="detail-section collapsible collapsed">
+          <div class="detail-section-head collapse-toggle">
             <h3>Notes</h3>
           </div>
-          <textarea id="d-notes" rows="4" placeholder="Write notes, journal entries, strategies..."></textarea>
-          <button id="d-notes-save" class="mini" style="margin-top:6px">Save notes</button>
+          <div class="collapse-body">
+            <textarea id="d-notes" rows="4" placeholder="Write notes, journal entries, strategies..."></textarea>
+            <button id="d-notes-save" class="mini" style="margin-top:6px">Save notes</button>
+          </div>
         </div>
         <div class="detail-section">
           <div class="detail-section-head">
             <h3>Save Backup</h3>
-            <button id="d-backup" class="mini">💾 Backup saves</button>
+            <button id="d-backup" class="mini"><svg class="ico"><use href="#ico-save"/></svg> Backup saves</button>
           </div>
           <div id="d-backup-status" class="hint"></div>
           <div id="d-save-paths" class="save-paths"></div>
@@ -200,14 +258,23 @@
         <div class="detail-section" id="d-steam-ach-section" style="display:none">
           <div class="detail-section-head">
             <h3>Steam Achievements <span id="d-steam-ach-count" class="muted-count"></span></h3>
-            <button id="d-steam-ach-refresh" class="mini">⟳ Refresh</button>
+            <button id="d-steam-ach-refresh" class="mini"><svg class="ico"><use href="#ico-refresh"/></svg> Refresh</button>
           </div>
           <div id="d-steam-ach" class="ach-mini"></div>
         </div>
         <div class="detail-section">
           <div class="detail-section-head">
+            <h3>Soundtrack</h3>
+            <button id="d-music-search" class="mini"><svg class="ico"><use href="#ico-music"/></svg> Search OST</button>
+          </div>
+          <div id="d-soundtrack" class="soundtrack-box">
+            <p class="hint">Search for this game's soundtrack on YouTube.</p>
+          </div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-section-head">
             <h3>Screenshots <span id="d-ss-count" class="muted-count"></span></h3>
-            <button id="d-ss-take" class="mini">📸 Capture</button>
+            <button id="d-ss-take" class="mini"><svg class="ico"><use href="#ico-camera"/></svg> Capture</button>
           </div>
           <div id="d-screenshots" class="ss-gallery"></div>
         </div>
@@ -228,8 +295,7 @@
         <div id="d-path" class="path"></div>
       </div>
       <div class="detail-side">
-        <img id="d-cover" class="detail-cover" alt="" />
-        <button id="d-cover-btn">Change cover</button>
+        <button id="d-browse-art"><svg class="ico"><use href="#ico-palette"/></svg> Browse art</button>
         <div class="quick-actions">
           <button id="d-bg-btn">Set background</button>
           <button id="d-bg-clear">Clear</button>
@@ -264,7 +330,6 @@
       </label>
       <label>Name<input id="a-name" type="text" /></label>
       <label>Launch arguments (optional)<input id="a-args" type="text" /></label>
-      <label class="check"><input id="a-ai" type="checkbox" checked /> Auto-generate description with AI</label>
       <div class="modal-actions">
         <button id="a-cancel">Cancel</button>
         <button id="a-confirm" class="primary">Add</button>
@@ -350,6 +415,21 @@
         <input id="set-discordid" type="text" placeholder="Create an app at discord.com/developers" />
       </label>
       <hr />
+      <label>Twitch Client ID <small>(for IGDB)</small>
+        <input id="set-twitch-id" type="text" placeholder="Twitch developer client ID" />
+      </label>
+      <label>Twitch Client Secret
+        <input id="set-twitch-secret" type="password" placeholder="Twitch developer client secret" />
+      </label>
+      <label>SteamGridDB API Key <small><a id="set-sgdb-link" style="color:var(--accent);cursor:pointer">Get one free</a></small>
+        <input id="set-sgdb-key" type="text" placeholder="SteamGridDB API key" />
+      </label>
+      <label>YouTube Data API Key
+        <input id="set-yt-key" type="text" placeholder="YouTube API key (for OST search)" />
+      </label>
+      <label class="check"><input id="set-autofetch" type="checkbox" /> Auto-fetch metadata when adding a game</label>
+      <p class="hint">IGDB pulls official cover art, screenshots, and descriptions. SteamGridDB provides community-made covers, heroes, and logos. YouTube lets you play OST previews.</p>
+      <hr />
       <label>Ollama URL<input id="set-ollamaurl" type="text" placeholder="http://localhost:11434" /></label>
       <label>Ollama model
         <input id="set-ollamamodel" type="text" list="ollama-models" placeholder="qwen2.5:3b" />
@@ -391,18 +471,38 @@
 
   <!-- gamepad hint bar -->
   <div id="gp-hints" class="gp-hints hidden">
-    <span><b class="gp-glyph">Ⓐ</b> Select</span>
-    <span><b class="gp-glyph">Ⓑ</b> Back</span>
-    <span><b class="gp-glyph">▤</b> Menu</span>
+    <span><b class="gp-glyph">A</b> Select</span>
+    <span><b class="gp-glyph">B</b> Back</span>
+    <span><b class="gp-glyph">M</b> Menu</span>
     <span><b class="gp-glyph">LB/RB</b> Sections</span>
   </div>
-  <div id="gp-connect" class="gp-connect hidden"><div class="gp-icon">🎮</div><span>Controller connected</span></div>
+  <div id="gp-connect" class="gp-connect hidden"><div class="gp-icon"><svg class="ico"><use href="#ico-gamepad"/></svg></div><span>Controller connected</span></div>
 
-  <!-- Ollama prompt -->
-  <div id="ollama-banner" class="ollama-banner hidden">
-    <span>Ollama is not running — AI features (descriptions, save backup) won't work.</span>
-    <button id="ollama-start" class="mini primary">Start Ollama</button>
-    <button id="ollama-dismiss" class="mini">Dismiss</button>
+  <!-- Art Browser modal -->
+  <div id="modal-art" class="modal hidden">
+    <div class="modal-card wide">
+      <h2>Browse Art <span id="art-game-name" class="muted-count"></span></h2>
+      <div class="art-tabs">
+        <button class="art-tab active" data-art-type="grids">Covers</button>
+        <button class="art-tab" data-art-type="heroes">Heroes</button>
+        <button class="art-tab" data-art-type="logos">Logos</button>
+        <button class="art-tab" data-art-type="icons">Icons</button>
+      </div>
+      <div id="art-status" class="hint"></div>
+      <div id="art-grid" class="art-grid"></div>
+      <div class="modal-actions">
+        <button id="art-close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Music player (floating) -->
+  <div id="music-player" class="music-player hidden">
+    <div class="mp-head">
+      <span id="mp-title" class="mp-title">Now Playing</span>
+      <button id="mp-close" class="mp-close">×</button>
+    </div>
+    <iframe id="mp-frame" class="mp-frame" allow="autoplay; encrypted-media" allowfullscreen></iframe>
   </div>
 
   <div id="toast" class="toast hidden"></div>

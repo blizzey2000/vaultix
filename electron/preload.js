@@ -39,6 +39,13 @@ contextBridge.exposeInMainWorld('vaultix', {
   findSavePaths: (name) => ipcRenderer.invoke('find-save-paths', { name }),
   backupSaves: (gameId, gameName, paths) => ipcRenderer.invoke('backup-saves', { gameId, gameName, paths }),
   startOllama: () => ipcRenderer.invoke('start-ollama'),
+  igdbSearch: (name) => ipcRenderer.invoke('igdb-search', name),
+  sgdbSearch: (name) => ipcRenderer.invoke('sgdb-search', name),
+  sgdbAssets: (sgdbId, type) => ipcRenderer.invoke('sgdb-assets', { sgdbId, type }),
+  sgdbBySteam: (appid, type) => ipcRenderer.invoke('sgdb-by-steam', { appid, type }),
+  downloadImage: (url, filename) => ipcRenderer.invoke('download-image', { url, filename }),
+  youtubeSearch: (query) => ipcRenderer.invoke('youtube-search', query),
+  fetchGameMetadata: (name) => ipcRenderer.invoke('fetch-game-metadata', name),
   on: (channel, cb) => {
     const allowed = ['session-started', 'session-ended', 'achievement-unlocked', 'achievements-changed', 'update-status', 'screenshot-taken', 'session-alert', 'ollama-not-running', 'new-games-found'];
     if (allowed.includes(channel)) ipcRenderer.on(channel, (e, data) => cb(data));

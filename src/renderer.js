@@ -136,6 +136,7 @@ function heroImageFor(g) {
   return g.cover || '';
 }
 function logoImageFor(g) {
+  if (g.logoImage) return g.logoImage;
   if (g.type === 'steam' && g.appid) return `https://cdn.cloudflare.steamstatic.com/steam/apps/${g.appid}/logo.png`;
   return '';
 }
@@ -269,7 +270,7 @@ function renderHome() {
     el('hh-name').classList.remove('hidden');
     el('hh-logo').classList.add('hidden');
     if (logo) tryImg(logo, () => { el('hh-logo').src = logo; el('hh-logo').classList.remove('hidden'); el('hh-name').classList.add('hidden'); });
-    el('hh-meta').textContent = `${featured.type} · ${fmtPlaytime(combinedMin(featured))} · ${fmtLast(featured.lastPlayed)}`;
+    el('hh-meta').innerHTML = `<span class="pill">${escapeHtml(featured.type)}</span><span class="pill">${escapeHtml(fmtPlaytime(combinedMin(featured)))}</span><span class="pill">${escapeHtml(fmtLast(featured.lastPlayed))}</span>`;
     el('hh-play').onclick = () => launch(featured.id);
   } else hero.classList.add('hidden');
 
@@ -277,7 +278,7 @@ function renderHome() {
   el('home-all-row').style.display = w.includes('all') ? '' : 'none';
 
   if (w.includes('recent')) {
-    const recent = games.slice(0, 12);
+    const recent = games.filter(g => g.id !== featured?.id).slice(0, 12);
     el('home-recent').innerHTML = recent.map((g) => `
       <div class="rail-item card" data-id="${g.id}">
         ${runningIds().includes(g.id) ? '<span class="running-dot"></span>' : ''}
@@ -287,7 +288,8 @@ function renderHome() {
   }
 
   if (w.includes('all')) {
-    el('home-grid').innerHTML = games.map((g, i) => cardHtml(g, i)).join('');
+    const allGames = games.filter(g => g.id !== featured?.id);
+    el('home-grid').innerHTML = allGames.map((g, i) => cardHtml(g, i)).join('');
     wireCards(el('home-grid'));
   }
 }
@@ -365,7 +367,7 @@ async function openDetail(id) {
     : `${fmtPlaytime(g.playtimeMinutes)} tracked here`;
   el('d-launches').textContent = g.launchCount || 0;
   el('d-type').textContent = g.type === 'steam' ? 'Steam' : g.type === 'epic' ? 'Epic' : g.type === 'gog' ? 'GOG' : 'Executable';
-  el('d-desc').textContent = g.description || 'No description yet. Hit "AI describe" to generate one locally with Ollama.';
+  el('d-desc').textContent = g.description || 'No description available.';
   el('d-desc').classList.toggle('empty', !g.description);
   el('d-image').value = g.imageName || '';
 
@@ -390,7 +392,6 @@ async function openDetail(id) {
 
   // screenshots
   renderScreenshots(g.id);
-  el('d-cover').src = g.cover || '';
   el('d-path').textContent = g.exePath || g.installDir || (g.type === 'steam' ? `steam://rungameid/${g.appid}` : g.launchUrl || '');
   el('d-spark').innerHTML = window.Stats.sparkline(g.id, state.sessions);
   el('d-sessions').innerHTML = window.Stats.sessionsList(g.id, state.sessions);
@@ -399,8 +400,9 @@ async function openDetail(id) {
   el('d-storepage').style.display = g.type === 'exe' ? 'none' : '';
 
   const running = runningIds().includes(id);
-  el('d-play-label').textContent = running ? 'Running…' : 'Play';
+  el('d-play-label').textContent = running ? 'Running' : 'Play';
   el('d-play').disabled = running;
+  el('d-play').classList.toggle('running', running);
   el('d-stop').classList.toggle('hidden', !running);
 
   // dynamic accent from cover art
@@ -539,12 +541,6 @@ el('d-ai').onclick = async () => {
   await refresh();
   toast(r.stub ? 'Ollama not reachable — see Settings' : `Generated with ${r.model || 'Ollama'}`, r.stub ? 4000 : 2600);
 };
-el('d-cover-btn').onclick = async () => {
-  const p = await V.pickFile({ images: true });
-  if (!p) return;
-  const url = await V.importCover(p);
-  if (url) { await V.updateGame({ id: selectedId, cover: url }); await refresh(); }
-};
 el('d-bg-btn').onclick = async () => {
   const p = await V.pickFile({ images: true });
   if (!p) return;
@@ -573,7 +569,7 @@ el('a-confirm').onclick = async () => {
   el('modal-add').classList.add('hidden');
   el('a-exe').value = el('a-name').value = el('a-args').value = '';
   await refresh();
-  if (entry && entry.id) { openDetail(entry.id); if (el('a-ai').checked) el('d-ai').click(); }
+  if (entry && entry.id) { openDetail(entry.id); }
 };
 
 // ---------- wire: scan libraries ----------
@@ -619,8 +615,28 @@ el('stats-sync').onclick = async () => {
   else toast('Sync failed: ' + r.error);
 };
 
+// ---------- context menus ----------
+function setupCtxMenu(triggerId, menuId) {
+  const trigger = el(triggerId);
+  const menu = el(menuId);
+  if (!trigger || !menu) return;
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.querySelectorAll('.ctx-menu').forEach(m => { if (m !== menu) m.classList.add('hidden'); });
+    menu.classList.toggle('hidden');
+  });
+  menu.addEventListener('click', () => menu.classList.add('hidden'));
+  document.addEventListener('click', () => menu.classList.add('hidden'));
+}
+setupCtxMenu('btn-settings', 'topbar-menu');
+setupCtxMenu('d-about-more', 'd-about-menu');
+
+document.querySelectorAll('.collapse-toggle').forEach(t => {
+  t.addEventListener('click', () => t.closest('.collapsible').classList.toggle('collapsed'));
+});
+
 // ---------- wire: settings ----------
-el('btn-settings').onclick = async () => {
+const openSettings = async () => {
   const s = state.settings;
   el('set-bg').value = s.background || '';
   el('set-accent').value = s.accent || '#66c0f4';
@@ -644,6 +660,11 @@ el('btn-settings').onclick = async () => {
   el('set-w-friends').checked = w.includes('friends');
   el('set-w-recent').checked = w.includes('recent');
   el('set-w-all').checked = w.includes('all');
+  el('set-twitch-id').value = s.twitchClientId || '';
+  el('set-twitch-secret').value = s.twitchClientSecret || '';
+  el('set-sgdb-key').value = s.steamGridDbKey || '';
+  el('set-yt-key').value = s.youtubeApiKey || '';
+  el('set-autofetch').checked = s.autoFetchMetadata !== false;
   el('set-ollamaurl').value = s.ollamaUrl || 'http://localhost:11434';
   el('set-ollamamodel').value = s.ollamaModel || 'qwen2.5:3b';
   el('modal-settings').classList.remove('hidden');
@@ -657,6 +678,7 @@ el('btn-settings').onclick = async () => {
     st.textContent = 'Ollama not reachable. Install from ollama.com, then `ollama pull qwen2.5:3b`.';
   }
 };
+el('topbar-settings-item').onclick = openSettings;
 el('set-cancel').onclick = () => el('modal-settings').classList.add('hidden');
 el('set-bg-pick').onclick = async () => {
   const p = await V.pickFile({ images: true });
@@ -694,6 +716,7 @@ el('set-backupdrive-pick').onclick = async () => { const p = await V.pickFolder(
 el('set-gdrive-pick').onclick = async () => { const p = await V.pickFolder(); if (p) el('set-gdrive').value = p; };
 el('set-steam-link').onclick = () => { window.open('https://steamcommunity.com/dev/apikey', '_blank'); };
 el('set-discord-link').onclick = () => { window.open('https://discord.com/developers/applications', '_blank'); };
+el('set-sgdb-link').onclick = () => { window.open('https://www.steamgriddb.com/profile/preferences/api', '_blank'); };
 el('set-steamid-detect').onclick = async () => {
   const id = await V.detectSteamId();
   if (id) { el('set-steamid').value = id; toast('Detected Steam ID: ' + id); }
@@ -707,6 +730,11 @@ el('set-import').onclick = async () => {
 };
 el('set-save').onclick = async () => {
   state.settings = await V.saveSettings({
+    twitchClientId: el('set-twitch-id').value.trim(),
+    twitchClientSecret: el('set-twitch-secret').value.trim(),
+    steamGridDbKey: el('set-sgdb-key').value.trim(),
+    youtubeApiKey: el('set-yt-key').value.trim(),
+    autoFetchMetadata: el('set-autofetch').checked,
     background: el('set-bg').value,
     accent: el('set-accent').value,
     dynamicAccent: el('set-dynaccent').checked,
@@ -741,7 +769,7 @@ window.vaultixNav = {
     if (m) return m.classList.add('hidden');
     if (!el('detail').classList.contains('hidden')) return closeDetail();
   },
-  menu: () => el('btn-settings').click(),
+  menu: () => openSettings(),
   section: (dir) => {
     const order = ['home', 'library', 'stats'];
     const i = order.indexOf(currentView);
@@ -970,7 +998,7 @@ el('d-notes-save').onclick = async () => {
 function renderSavePaths(g) {
   const box = el('d-save-paths');
   if (!g.savePaths || !g.savePaths.length) {
-    box.innerHTML = '<p class="hint">No save paths known. Click "Backup saves" to auto-detect with AI.</p>';
+    box.innerHTML = '<p class="hint">No save paths known. Click Backup to detect.</p>';
     el('d-backup-status').textContent = '';
     return;
   }
@@ -985,11 +1013,11 @@ el('d-backup').onclick = async () => {
 
   let paths = g.savePaths || [];
   if (!paths.length) {
-    status.textContent = 'Asking AI for save locations...';
+    status.textContent = 'Detecting save locations...';
     const res = await V.findSavePaths(g.name);
     if (!res.ok) { status.textContent = 'AI error: ' + res.error; return; }
     paths = res.paths;
-    if (!paths.length) { status.textContent = 'AI could not find save paths for this game.'; return; }
+    if (!paths.length) { status.textContent = 'Could not find save paths for this game.'; return; }
     status.textContent = `Found ${paths.length} path(s)${res.notes ? ': ' + res.notes : ''}. Backing up...`;
   } else {
     status.textContent = 'Backing up...';
@@ -1015,24 +1043,190 @@ V.on('new-games-found', (info) => {
   toast(`${info.count} new game(s) detected — click Scan libraries to add them`, 6000);
 });
 
-// ---------- ollama prompt ----------
-V.on('ollama-not-running', () => {
-  el('ollama-banner').classList.remove('hidden');
-});
-el('ollama-start').onclick = async () => {
-  el('ollama-start').textContent = 'Starting...';
-  el('ollama-start').disabled = true;
-  const r = await V.startOllama();
-  if (r.ok) {
-    el('ollama-banner').classList.add('hidden');
-    toast('Ollama started successfully');
-  } else {
-    el('ollama-start').textContent = 'Start Ollama';
-    el('ollama-start').disabled = false;
-    toast('Could not start Ollama — make sure it\'s installed', 4000);
+
+// ---------- fetch metadata (IGDB + SteamGridDB) ----------
+el('d-fetch-meta').onclick = async () => {
+  const g = state.games.find((x) => x.id === selectedId);
+  if (!g) return;
+  const btn = el('d-fetch-meta');
+  btn.classList.add('loading'); btn.disabled = true;
+  try {
+    const meta = await V.fetchGameMetadata(g.name);
+    if (!meta) { toast('No metadata found — check API keys in Settings', 4000); return; }
+    const patch = { id: selectedId };
+    if (meta.cover && !g.cover) patch.cover = meta.cover;
+    if (meta.summary && !g.description) patch.description = meta.summary;
+    if (meta.hero) patch.background = meta.hero;
+    if (meta.logo) patch.logoImage = meta.logo;
+    if (meta.igdbId) patch.igdbId = meta.igdbId;
+    if (Object.keys(patch).length > 1) {
+      await V.updateGame(patch);
+      toast('Metadata applied');
+    } else {
+      toast('No new metadata to apply');
+    }
+    await refresh();
+  } catch (e) {
+    toast('Metadata fetch failed: ' + e.message, 4000);
+  } finally {
+    btn.classList.remove('loading'); btn.disabled = false;
   }
 };
-el('ollama-dismiss').onclick = () => el('ollama-banner').classList.add('hidden');
+
+// ---------- art browser (SteamGridDB) ----------
+let artSgdbId = null;
+let artCurrentType = 'grids';
+
+el('d-browse-art').onclick = async () => {
+  const g = state.games.find((x) => x.id === selectedId);
+  if (!g) return;
+  el('art-game-name').textContent = `— ${g.name}`;
+  el('art-status').textContent = 'Searching SteamGridDB...';
+  el('art-grid').innerHTML = '';
+  el('modal-art').classList.remove('hidden');
+  artCurrentType = 'grids';
+  document.querySelectorAll('.art-tab').forEach((t) => t.classList.toggle('active', t.dataset.artType === 'grids'));
+
+  if (g.type === 'steam' && g.appid) {
+    artSgdbId = 'steam:' + g.appid;
+    loadArt('grids');
+  } else {
+    const res = await V.sgdbSearch(g.name);
+    if (res && res.length) {
+      artSgdbId = res[0].id;
+      loadArt('grids');
+    } else {
+      el('art-status').textContent = 'Game not found on SteamGridDB. Check your API key in Settings.';
+    }
+  }
+};
+
+document.querySelectorAll('.art-tab').forEach((tab) => {
+  tab.onclick = () => {
+    artCurrentType = tab.dataset.artType;
+    document.querySelectorAll('.art-tab').forEach((t) => t.classList.toggle('active', t === tab));
+    loadArt(artCurrentType);
+  };
+});
+
+async function loadArt(type) {
+  if (!artSgdbId) return;
+  el('art-status').textContent = 'Loading...';
+  el('art-grid').innerHTML = '';
+  const isWide = type === 'heroes';
+  el('art-grid').classList.toggle('wide-art', isWide);
+  try {
+    let assets;
+    if (typeof artSgdbId === 'string' && artSgdbId.startsWith('steam:')) {
+      const appid = artSgdbId.split(':')[1];
+      assets = await V.sgdbBySteam(appid, type);
+    } else {
+      assets = await V.sgdbAssets(artSgdbId, type);
+    }
+    if (!assets || !assets.length) {
+      el('art-status').textContent = 'No assets found for this type.';
+      return;
+    }
+    el('art-status').textContent = `${assets.length} result(s)`;
+    el('art-grid').innerHTML = assets.slice(0, 30).map((a) => {
+      const thumb = a.thumb || a.url;
+      const author = a.author ? a.author.name || '' : '';
+      return `<div class="art-item" data-url="${escapeAttr(a.url)}" data-type="${escapeAttr(type)}" title="${escapeAttr(author)}">
+        <img src="${escapeAttr(thumb)}" loading="lazy" onerror="this.style.display='none'" />
+        ${author ? `<div class="art-label">${escapeHtml(author)}</div>` : ''}
+      </div>`;
+    }).join('');
+    el('art-grid').querySelectorAll('.art-item').forEach((item) => {
+      item.onclick = async () => {
+        const url = item.dataset.url;
+        const artType = item.dataset.type;
+        const g = state.games.find((x) => x.id === selectedId);
+        if (!g) return;
+        el('art-status').textContent = 'Downloading...';
+        try {
+          const localUrl = await V.downloadImage(url, `${selectedId}_${artType}_${Date.now()}`);
+          if (!localUrl) { el('art-status').textContent = 'Download failed'; return; }
+          const patch = { id: selectedId };
+          if (artType === 'grids') patch.cover = localUrl;
+          else if (artType === 'heroes') patch.background = localUrl;
+          else if (artType === 'logos') patch.logoImage = localUrl;
+          else if (artType === 'icons') patch.iconImage = localUrl;
+          await V.updateGame(patch);
+          el('art-status').textContent = 'Applied!';
+          await refresh();
+          toast(`${artType.slice(0, -1)} set from SteamGridDB`);
+        } catch (e) {
+          el('art-status').textContent = 'Download failed: ' + e.message;
+        }
+      };
+    });
+  } catch (e) {
+    el('art-status').textContent = 'Failed to load art: ' + e.message;
+  }
+}
+
+el('art-close').onclick = () => el('modal-art').classList.add('hidden');
+
+// ---------- music / OST search (YouTube) ----------
+el('d-music-search').onclick = async () => {
+  const g = state.games.find((x) => x.id === selectedId);
+  if (!g) return;
+  const btn = el('d-music-search');
+  btn.classList.add('loading'); btn.disabled = true;
+  const box = el('d-soundtrack');
+  box.innerHTML = '<p class="hint">Searching YouTube...</p>';
+  try {
+    const results = await V.youtubeSearch(`${g.name} OST soundtrack`);
+    if (!results || !results.length) {
+      box.innerHTML = '<p class="hint">No results. Set your YouTube API key in Settings.</p>';
+      return;
+    }
+    box.innerHTML = '<div class="ost-results">' + results.slice(0, 5).map((v) => `
+      <div class="ost-item" data-vid="${escapeAttr(v.videoId)}">
+        <img class="ost-thumb" src="${escapeAttr(v.thumbnail)}" onerror="this.style.visibility='hidden'" />
+        <div class="ost-info">
+          <div class="ost-title">${escapeHtml(v.title)}</div>
+          <div class="ost-channel">${escapeHtml(v.channel)}</div>
+        </div>
+      </div>`).join('') + '</div>';
+    box.querySelectorAll('.ost-item').forEach((item) => {
+      item.onclick = () => playYouTube(item.dataset.vid, item.querySelector('.ost-title')?.textContent || '');
+    });
+  } catch (e) {
+    box.innerHTML = `<p class="hint">Search failed: ${escapeHtml(e.message)}</p>`;
+  } finally {
+    btn.classList.remove('loading'); btn.disabled = false;
+  }
+};
+
+function playYouTube(videoId, title) {
+  const player = el('music-player');
+  player.classList.remove('hidden');
+  el('mp-title').textContent = title || 'Now Playing';
+  el('mp-frame').src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?autoplay=1`;
+}
+el('mp-close').onclick = () => {
+  el('music-player').classList.add('hidden');
+  el('mp-frame').src = '';
+};
+
+// ---------- auto-fetch metadata on game add ----------
+const origAddConfirm = el('a-confirm').onclick;
+el('a-confirm').onclick = async () => {
+  const exePath = el('a-exe').value;
+  if (!exePath) return toast('Pick an executable first');
+  const name = el('a-name').value;
+  const entry = await V.addExeGame({ name, exePath, args: el('a-args').value });
+  el('modal-add').classList.add('hidden');
+  el('a-exe').value = el('a-name').value = el('a-args').value = '';
+  await refresh();
+  if (entry && entry.id) {
+    openDetail(entry.id);
+    if (state.settings.autoFetchMetadata !== false) {
+      setTimeout(() => el('d-fetch-meta').click(), 500);
+    }
+  }
+};
 
 // ---------- splash screen ----------
 function dismissSplash() {

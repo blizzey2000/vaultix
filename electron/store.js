@@ -24,6 +24,11 @@ const DEFAULT_SETTINGS = {
   backupDrivePath: 'G:\\VaultixSaves',
   googleDrivePath: '',
   homeWidgets: ['streak', 'friends', 'recent', 'all'],
+  twitchClientId: '',
+  twitchClientSecret: '',
+  steamGridDbKey: '',
+  youtubeApiKey: '',
+  autoFetchMetadata: true,
 };
 
 const GAME_DEFAULTS = {
@@ -38,6 +43,9 @@ const GAME_DEFAULTS = {
   collection: '',
   notes: '',
   savePaths: [],
+  logoImage: '',
+  iconImage: '',
+  igdbId: null,
 };
 
 class Store {

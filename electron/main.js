@@ -15,6 +15,7 @@ const { scanGogGames } = require('./gog');
 const { evaluate: evalAchievements } = require('./achievements');
 const { detectSteamId, getGameAchievements, fetchPlayerAchievements, getSteamFriends } = require('./steam-achievements');
 const { DiscordRPC } = require('./discord-rpc');
+const { igdbSearch, sgdbSearch, sgdbAssets, sgdbBySteamAppId, downloadImage, youtubeSearch, fetchGameMetadata } = require('./metadata');
 const { autoUpdater } = require('electron-updater');
 
 // FORCE data to %APPDATA%\Vaultix regardless of portable vs installed mode.
@@ -943,6 +944,35 @@ ipcMain.handle('backup-saves', async (e, { gameId, gameName, paths }) => {
 ipcMain.handle('pick-folder', async () => {
   const r = await dialog.showOpenDialog(win, { properties: ['openDirectory'] });
   return r.canceled ? null : r.filePaths[0];
+});
+
+// ---------- metadata APIs (IGDB, SteamGridDB, YouTube) ----------
+ipcMain.handle('igdb-search', async (e, name) => {
+  return igdbSearch(name, store.settings.twitchClientId, store.settings.twitchClientSecret);
+});
+
+ipcMain.handle('sgdb-search', async (e, name) => {
+  return sgdbSearch(name, store.settings.steamGridDbKey);
+});
+
+ipcMain.handle('sgdb-assets', async (e, { sgdbId, type }) => {
+  return sgdbAssets(sgdbId, type, store.settings.steamGridDbKey);
+});
+
+ipcMain.handle('sgdb-by-steam', async (e, { appid, type }) => {
+  return sgdbBySteamAppId(appid, type, store.settings.steamGridDbKey);
+});
+
+ipcMain.handle('download-image', async (e, { url, filename }) => {
+  return downloadImage(url, coversDir, filename || uid());
+});
+
+ipcMain.handle('youtube-search', async (e, query) => {
+  return youtubeSearch(query, store.settings.youtubeApiKey);
+});
+
+ipcMain.handle('fetch-game-metadata', async (e, gameName) => {
+  return fetchGameMetadata(gameName, store.settings, coversDir);
 });
 
 // ---------- streak / stats ----------
