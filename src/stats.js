@@ -117,12 +117,34 @@
     return `<svg viewBox="0 0 ${w} ${h}" width="100%" style="max-width:${w}px" preserveAspectRatio="none">${bars}</svg>`;
   }
 
+  function hourlyBarSvg(sessions) {
+    const hours = new Array(24).fill(0);
+    for (const s of sessions) {
+      const h = new Date(s.start).getHours();
+      hours[h] += s.minutes;
+    }
+    const max = Math.max(60, ...hours);
+    if (!hours.some(Boolean)) return '<p class="hint">No session data yet.</p>';
+    const w = 500, h = 120, barW = w / 24 - 3;
+    let bars = '';
+    for (let i = 0; i < 24; i++) {
+      const bh = (hours[i] / max) * (h - 22);
+      const x = i * (barW + 3) + 1;
+      const y = h - bh - 18;
+      bars += `<rect x="${x}" y="${y}" width="${barW}" height="${bh}" rx="2" fill="var(--accent)" fill-opacity="${hours[i] ? 0.7 : 0.1}"><title>${i}:00 — ${fmt(hours[i])}</title></rect>`;
+      if (i % 4 === 0) bars += `<text x="${x + barW / 2}" y="${h - 3}" fill="var(--muted)" font-size="8" text-anchor="middle">${i}</text>`;
+    }
+    return `<svg viewBox="0 0 ${w} ${h}" width="100%" style="max-width:${w}px" preserveAspectRatio="none">${bars}</svg>`;
+  }
+
   window.Stats = {
     render(games, sessions) {
       document.getElementById('stats-totals').innerHTML = totalsHtml(games, sessions);
       document.getElementById('stats-heatmap').innerHTML = heatmapSvg(sessions);
       const weekly = document.getElementById('stats-weekly');
       if (weekly) weekly.innerHTML = weeklyBarSvg(sessions);
+      const hourly = document.getElementById('stats-hourly');
+      if (hourly) hourly.innerHTML = hourlyBarSvg(sessions);
       const top = document.getElementById('stats-top');
       top.innerHTML = topSvg(games);
       top.querySelectorAll('.bar-row').forEach((r) => {

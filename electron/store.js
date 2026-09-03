@@ -29,6 +29,8 @@ const DEFAULT_SETTINGS = {
   steamGridDbKey: '',
   youtubeApiKey: '',
   autoFetchMetadata: true,
+  customCollections: [],
+  shelves: [],
 };
 
 const GAME_DEFAULTS = {
@@ -46,6 +48,9 @@ const GAME_DEFAULTS = {
   logoImage: '',
   iconImage: '',
   igdbId: null,
+  hltbMain: 0,
+  hltbExtra: 0,
+  hltbComplete: 0,
 };
 
 class Store {
@@ -58,6 +63,8 @@ class Store {
       settings: { ...DEFAULT_SETTINGS },
       achievements: {},          // id -> { unlocked: ts|null, progress: number, seen: bool }
       appStats: { opens: 0, firstOpen: null, aiDescribes: 0 },
+      wishlist: [],              // { id, name, releaseDate, cover, notes, addedAt }
+      journal: [],               // { id, gameId, text, createdAt, auto }
     };
     this.load();
   }
@@ -73,6 +80,8 @@ class Store {
     this.data.settings = Object.assign({ ...DEFAULT_SETTINGS }, parsed.settings || {});
     this.data.achievements = parsed.achievements && typeof parsed.achievements === 'object' ? parsed.achievements : {};
     this.data.appStats = Object.assign({ opens: 0, firstOpen: null, aiDescribes: 0 }, parsed.appStats || {});
+    this.data.wishlist = Array.isArray(parsed.wishlist) ? parsed.wishlist : [];
+    this.data.journal = Array.isArray(parsed.journal) ? parsed.journal : [];
 
     // migration / backfill
     for (const g of this.data.games) {
@@ -100,6 +109,16 @@ class Store {
   set achievements(v) { this.data.achievements = v; this.save(); }
   get appStats() { return this.data.appStats; }
   set appStats(v) { this.data.appStats = v; this.save(); }
+  get wishlist() { return this.data.wishlist; }
+  set wishlist(v) { this.data.wishlist = v; this.save(); }
+  get journal() { return this.data.journal; }
+  set journal(v) { this.data.journal = v; this.save(); }
+
+  addJournal(entry) {
+    this.data.journal.push(entry);
+    if (this.data.journal.length > 2000) this.data.journal = this.data.journal.slice(-2000);
+    this.save();
+  }
 
   addSession(rec) {
     this.data.sessions.push(rec);

@@ -69,6 +69,7 @@
     <nav class="tabs">
       <button class="tab active" data-view="home">Home</button>
       <button class="tab" data-view="library">Library</button>
+      <button class="tab" data-view="wishlist">Wishlist</button>
       <button class="tab" data-view="achievements">Achievements</button>
       <button class="tab" data-view="stats">Stats</button>
     </nav>
@@ -108,6 +109,10 @@
         <h3>Friends online</h3>
         <div id="home-friends" class="rail"></div>
       </div>
+      <div class="home-row" id="home-picker-row">
+        <button id="random-pick" class="picker-btn">🎲 What should I play?</button>
+      </div>
+      <div id="home-shelves"></div>
       <div class="home-row" id="home-recent-row">
         <h3>Jump back in</h3>
         <div id="home-recent" class="rail"></div>
@@ -147,6 +152,19 @@
       </div>
     </section>
 
+    <!-- WISHLIST -->
+    <section id="wishlist" class="view hidden">
+      <div class="stats-head">
+        <h2>Wishlist <span id="wl-count" class="muted-count"></span></h2>
+        <button id="wl-add" class="primary">+ Add to wishlist</button>
+      </div>
+      <div id="wl-list" class="wl-grid"></div>
+      <div id="wl-empty" class="empty hidden">
+        <h2>Wishlist is empty</h2>
+        <p>Add upcoming games you're excited about.</p>
+      </div>
+    </section>
+
     <!-- ACHIEVEMENTS -->
     <section id="achievements" class="view hidden">
       <div class="stats-head">
@@ -171,8 +189,15 @@
         <div id="stats-weekly"></div>
       </div>
       <div class="stats-block">
+        <h3>Time of day</h3>
+        <div id="stats-hourly"></div>
+      </div>
+      <div class="stats-block">
         <h3>Most played</h3>
         <div id="stats-top"></div>
+      </div>
+      <div class="stats-block" style="text-align:center;padding:20px 0">
+        <button id="stats-wrapped" class="primary" style="font-size:16px;padding:14px 32px">🎁 Year in Review</button>
       </div>
     </section>
   </main>
@@ -246,6 +271,38 @@
             <textarea id="d-notes" rows="4" placeholder="Write notes, journal entries, strategies..."></textarea>
             <button id="d-notes-save" class="mini" style="margin-top:6px">Save notes</button>
           </div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-section-head">
+            <h3>How Long to Beat</h3>
+            <button id="d-hltb-search" class="mini"><svg class="ico"><use href="#ico-globe"/></svg> Open HLTB</button>
+          </div>
+          <div class="hltb-row">
+            <div class="hltb-field">
+              <label class="field-label">Main Story (hrs)</label>
+              <input id="d-hltb-main" type="number" min="0" step="0.5" placeholder="0" />
+            </div>
+            <div class="hltb-field">
+              <label class="field-label">Main + Extras (hrs)</label>
+              <input id="d-hltb-extra" type="number" min="0" step="0.5" placeholder="0" />
+            </div>
+            <div class="hltb-field">
+              <label class="field-label">Completionist (hrs)</label>
+              <input id="d-hltb-complete" type="number" min="0" step="0.5" placeholder="0" />
+            </div>
+            <button id="d-hltb-save" class="mini" style="align-self:flex-end">Save</button>
+          </div>
+          <div id="d-hltb-progress" class="hltb-progress"></div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-section-head">
+            <h3>Journal <span id="d-journal-count" class="muted-count"></span></h3>
+          </div>
+          <div class="journal-input">
+            <textarea id="d-journal-text" rows="2" placeholder="Add a journal entry..."></textarea>
+            <button id="d-journal-add" class="mini">Add entry</button>
+          </div>
+          <div id="d-journal" class="journal-timeline"></div>
         </div>
         <div class="detail-section">
           <div class="detail-section-head">
@@ -410,6 +467,19 @@
         <label class="check"><input id="set-w-all" type="checkbox" /> All games grid</label>
       </div>
       <hr />
+      <label>Custom collections</label>
+      <div id="set-collections" class="custom-coll-list"></div>
+      <div class="row" style="margin-bottom:6px">
+        <input id="set-coll-input" type="text" placeholder="New collection name" />
+        <button id="set-coll-add" class="mini">Add</button>
+      </div>
+      <p class="hint">Custom collections appear alongside Playing, Backlog, etc.</p>
+      <hr />
+      <label>Home page shelves</label>
+      <div id="set-shelves" class="shelves-list"></div>
+      <button id="set-shelf-add" class="mini">+ Add shelf</button>
+      <p class="hint">Shelves show filtered game rails on your home page.</p>
+      <hr />
       <label class="check"><input id="set-discord" type="checkbox" /> Discord Rich Presence (show what you're playing)</label>
       <label>Discord Application ID <small><a id="set-discord-link" style="color:var(--accent);cursor:pointer">Create one</a></small>
         <input id="set-discordid" type="text" placeholder="Create an app at discord.com/developers" />
@@ -465,6 +535,74 @@
       </div>
       <div class="modal-actions">
         <button id="pg-close" class="primary">Nice</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Random picker modal -->
+  <div id="modal-picker" class="modal hidden">
+    <div class="modal-card picker-card">
+      <h2>🎲 What should I play?</h2>
+      <div id="picker-stage" class="picker-stage">
+        <div id="picker-result" class="picker-result"></div>
+      </div>
+      <div class="picker-controls">
+        <label class="check"><input id="picker-backlog" type="checkbox" /> Backlog only</label>
+        <label class="check"><input id="picker-unplayed" type="checkbox" /> Unplayed only</label>
+      </div>
+      <div class="modal-actions">
+        <button id="picker-close">Close</button>
+        <button id="picker-again" class="primary">🎲 Spin again</button>
+        <button id="picker-launch" class="primary" style="display:none">Play!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Wishlist add modal -->
+  <div id="modal-wl-add" class="modal hidden">
+    <div class="modal-card">
+      <h2>Add to Wishlist</h2>
+      <label>Game name<input id="wl-name" type="text" placeholder="Game title" /></label>
+      <label>Release date<input id="wl-date" type="date" /></label>
+      <label>Cover image URL (optional)<input id="wl-cover" type="text" placeholder="https://..." /></label>
+      <label>Notes<textarea id="wl-notes" rows="2" placeholder="Why you're excited..."></textarea></label>
+      <div class="modal-actions">
+        <button id="wl-add-cancel">Cancel</button>
+        <button id="wl-add-confirm" class="primary">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Year in Review modal -->
+  <div id="modal-wrapped" class="modal hidden">
+    <div class="modal-card wide wrapped-card">
+      <h2>🎮 Year in Review <span id="wrapped-year"></span></h2>
+      <div id="wrapped-content" class="wrapped-content"></div>
+      <div class="wrapped-nav">
+        <button id="wrapped-prev" class="mini">&lt; Previous year</button>
+        <button id="wrapped-next" class="mini">Next year &gt;</button>
+      </div>
+      <div class="modal-actions">
+        <button id="wrapped-close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shelf add modal -->
+  <div id="modal-shelf" class="modal hidden">
+    <div class="modal-card">
+      <h2>Add Home Shelf</h2>
+      <label>Shelf name<input id="shelf-name" type="text" placeholder="e.g. Cozy Games" /></label>
+      <label>Filter by
+        <select id="shelf-filter-type">
+          <option value="collection">Collection</option>
+          <option value="tag">Tag</option>
+        </select>
+      </label>
+      <label>Value<input id="shelf-filter-value" type="text" placeholder="e.g. backlog, RPG" /></label>
+      <div class="modal-actions">
+        <button id="shelf-cancel">Cancel</button>
+        <button id="shelf-confirm" class="primary">Add shelf</button>
       </div>
     </div>
   </div>

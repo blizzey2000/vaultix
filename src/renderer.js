@@ -15,6 +15,8 @@ const V = window.vaultix || (() => {
     ],
     settings: { theme: 'default', accent: '#66c0f4', background: '', dynamicAccent: true, ollamaUrl: 'http://localhost:11434', ollamaModel: 'qwen2.5:3b', hotkey: 'CommandOrControl+Shift+V', autoStart: true, minimizeToTray: true, minimizeOnPlay: true },
     running: [],
+    wishlist: [],
+    journal: [],
   };
   const ok = async () => ({ ok: true });
   return {
@@ -53,11 +55,29 @@ const V = window.vaultix || (() => {
     backupSaves: async () => ({ ok: true, backed: 3, errors: [], destinations: ['G:\\VaultixSaves'] }),
     pickFolder: async () => null,
     startOllama: async () => ({ ok: true }),
+    randomGame: async (opts) => {
+      let pool = demo.games;
+      if (opts?.backlog) pool = pool.filter(g => g.collection === 'backlog');
+      if (opts?.unplayed) pool = pool.filter(g => (g.playtimeMinutes || 0) + (g.steamPlaytimeMinutes || 0) === 0);
+      return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+    },
+    addWishlist: async (item) => { item.id = Date.now().toString(); demo.wishlist.push(item); return item; },
+    updateWishlist: async (patch) => { const w = demo.wishlist.find(x => x.id === patch.id); if (w) Object.assign(w, patch); },
+    removeWishlist: async (id) => { demo.wishlist = demo.wishlist.filter(x => x.id !== id); },
+    addJournal: async (entry) => { entry.id = Date.now().toString(); entry.date = Date.now(); demo.journal.push(entry); return entry; },
+    updateJournal: async (patch) => { const j = demo.journal.find(x => x.id === patch.id); if (j) Object.assign(j, patch); },
+    deleteJournal: async (id) => { demo.journal = demo.journal.filter(x => x.id !== id); },
+    yearInReview: async (year) => ({
+      year, totalMinutes: 3200, topGame: { name: 'HITMAN World of Assassination', minutes: 1870 },
+      gamesPlayed: 4, totalSessions: 35, longestSessionMinutes: 180, mostActiveMonth: 'March',
+      daysPlayed: 28, monthlyMinutes: new Array(12).fill(0).map(() => Math.floor(Math.random() * 600)),
+    }),
+    timeDistribution: async () => new Array(24).fill(0).map(() => Math.floor(Math.random() * 120)),
     on: () => {},
   };
 })();
 
-let state = { games: [], settings: {}, sessions: [], running: [] };
+let state = { games: [], settings: {}, sessions: [], running: [], wishlist: [], journal: [] };
 let selectedId = null;
 let scanCandidates = [];
 let currentView = 'home';
@@ -152,7 +172,7 @@ function cardHtml(g, i) {
     <span class="badge">${g.type}</span>
     ${runningIds().includes(g.id) ? '<span class="running-dot"></span>' : ''}
     <button class="fav-star ${g.favorite ? 'on' : ''}" data-fav="${g.id}" title="Favorite">${g.favorite ? '★' : '☆'}</button>
-    ${g.collection ? `<span class="coll-badge">${escapeHtml(collLabels[g.collection] || g.collection)}</span>` : ''}
+    ${g.collection ? `<span class="coll-badge">${escapeHtml(getCollLabel(g.collection))}</span>` : ''}
     ${coverHtml(g)}
     <div class="cap">${escapeHtml(g.name)}${g.rating ? ' <span style="color:#ffd36b;font-size:10px">' + '★'.repeat(g.rating) + '</span>' : ''}</div>
   </div>`;
@@ -178,6 +198,7 @@ function switchView(v) {
   if (v === 'home') renderHome();
   if (v === 'library') renderLibrary();
   if (v === 'stats') window.Stats.render(state.games, state.sessions);
+  if (v === 'wishlist') renderWishlist();
   if (v === 'achievements') renderAchievements();
 }
 
@@ -274,6 +295,7 @@ function renderHome() {
     el('hh-play').onclick = () => launch(featured.id);
   } else hero.classList.add('hidden');
 
+  renderShelves();
   el('home-recent-row').style.display = w.includes('recent') ? '' : 'none';
   el('home-all-row').style.display = w.includes('all') ? '' : 'none';
 
@@ -296,9 +318,12 @@ function renderHome() {
 
 function renderLibrary() {
   const q = el('search').value.toLowerCase().trim();
-  const fc = el('filter-collection').value;
   const ft = el('filter-tag').value;
   const sb = el('sort-by').value;
+
+  // populate collection filter with custom collections
+  populateCollectionDropdown(el('filter-collection'), false);
+  const fc = el('filter-collection').value;
 
   // populate tag filter from all games
   const allTags = new Set();
@@ -378,7 +403,8 @@ async function openDetail(id) {
     s.classList.toggle('on', r <= (g.rating || 0));
   });
 
-  // collection
+  // collection (populate custom collections)
+  populateCollectionDropdown(el('d-collection'), true);
   el('d-collection').value = g.collection || '';
 
   // notes
@@ -397,6 +423,15 @@ async function openDetail(id) {
   el('d-sessions').innerHTML = window.Stats.sessionsList(g.id, state.sessions);
   renderDetailAchievements(g.id);
   renderSteamAchievements(g);
+  // HLTB
+  el('d-hltb-main').value = g.hltbMain || '';
+  el('d-hltb-extra').value = g.hltbExtra || '';
+  el('d-hltb-complete').value = g.hltbComplete || '';
+  renderHltb(g);
+
+  // journal
+  renderJournal(g.id);
+
   el('d-storepage').style.display = g.type === 'exe' ? 'none' : '';
 
   const running = runningIds().includes(id);
@@ -474,10 +509,13 @@ async function launch(id) {
 
 async function refresh() {
   state = await V.getState();
+  state.wishlist = state.wishlist || [];
+  state.journal = state.journal || [];
   applySettings();
   if (currentView === 'home') renderHome();
   else if (currentView === 'library') renderLibrary();
   else if (currentView === 'stats') window.Stats.render(state.games, state.sessions);
+  else if (currentView === 'wishlist') renderWishlist();
   if (selectedId && !el('detail').classList.contains('hidden')) openDetail(selectedId);
   showNowPlaying();
 }
@@ -667,6 +705,8 @@ const openSettings = async () => {
   el('set-autofetch').checked = s.autoFetchMetadata !== false;
   el('set-ollamaurl').value = s.ollamaUrl || 'http://localhost:11434';
   el('set-ollamamodel').value = s.ollamaModel || 'qwen2.5:3b';
+  renderSettingCollections();
+  renderSettingShelves();
   el('modal-settings').classList.remove('hidden');
   const st = el('set-ai-status');
   st.textContent = 'Checking Ollama…';
@@ -756,6 +796,8 @@ el('set-save').onclick = async () => {
     homeWidgets: ['streak', 'friends', 'recent', 'all'].filter((k) => el('set-w-' + k).checked),
     ollamaUrl: el('set-ollamaurl').value.trim() || 'http://localhost:11434',
     ollamaModel: el('set-ollamamodel').value.trim() || 'qwen2.5:3b',
+    customCollections: state.settings.customCollections || [],
+    shelves: state.settings.shelves || [],
   });
   el('modal-settings').classList.add('hidden');
   applySettings();
@@ -1234,6 +1276,339 @@ function dismissSplash() {
   if (!sp) return;
   sp.classList.add('out');
   setTimeout(() => sp.remove(), 600);
+}
+
+// ---------- helper: populate collection dropdown with custom collections ----------
+function populateCollectionDropdown(selectEl, isDetail) {
+  const cur = selectEl.value;
+  const customs = (state.settings.customCollections || []);
+  const base = isDetail
+    ? '<option value="">None</option>'
+    : '<option value="">All games</option>';
+  selectEl.innerHTML = base +
+    '<option value="playing">Playing</option>' +
+    '<option value="backlog">Backlog</option>' +
+    '<option value="completed">Completed</option>' +
+    '<option value="dropped">Dropped</option>' +
+    customs.map(c => `<option value="${escapeAttr(c)}">${escapeHtml(c)}</option>`).join('');
+  selectEl.value = cur;
+}
+
+function getCollLabel(key) {
+  const builtIn = { playing: 'Playing', backlog: 'Backlog', completed: 'Completed', dropped: 'Dropped' };
+  return builtIn[key] || key;
+}
+
+// ---------- random picker ----------
+let pickedGame = null;
+
+function spinPicker() {
+  const opts = {};
+  if (el('picker-backlog').checked) opts.backlog = true;
+  if (el('picker-unplayed').checked) opts.unplayed = true;
+  const stage = el('picker-result');
+  el('picker-launch').style.display = 'none';
+  pickedGame = null;
+
+  const pool = state.games.filter(g => {
+    if (opts.backlog && g.collection !== 'backlog') return false;
+    if (opts.unplayed && combinedMin(g) === 0) return false;
+    return true;
+  });
+  if (!pool.length) {
+    stage.innerHTML = '<p class="hint">No games match your filters!</p>';
+    return;
+  }
+
+  let spins = 0;
+  const total = 18;
+  const interval = setInterval(() => {
+    const g = pool[Math.floor(Math.random() * pool.length)];
+    stage.innerHTML = `<div class="picker-spin">${coverHtml(g)}<div class="picker-name">${escapeHtml(g.name)}</div></div>`;
+    spins++;
+    if (spins >= total) {
+      clearInterval(interval);
+      pickedGame = g;
+      stage.innerHTML = `<div class="picker-final">${coverHtml(g)}<div class="picker-name">${escapeHtml(g.name)}</div><div class="picker-meta">${fmtPlaytime(combinedMin(g))} played</div></div>`;
+      el('picker-launch').style.display = '';
+    }
+  }, 80 + spins * 8);
+}
+
+el('random-pick').onclick = () => {
+  el('modal-picker').classList.remove('hidden');
+  spinPicker();
+};
+el('picker-again').onclick = () => spinPicker();
+el('picker-launch').onclick = () => {
+  if (pickedGame) {
+    el('modal-picker').classList.add('hidden');
+    launch(pickedGame.id);
+  }
+};
+el('picker-close').onclick = () => el('modal-picker').classList.add('hidden');
+
+// ---------- wishlist ----------
+function renderWishlist() {
+  const items = state.wishlist || [];
+  el('wl-count').textContent = items.length ? `(${items.length})` : '';
+  el('wl-empty').classList.toggle('hidden', items.length > 0);
+  const now = Date.now();
+  el('wl-list').innerHTML = items.sort((a, b) => (a.releaseDate || '') < (b.releaseDate || '') ? -1 : 1).map(w => {
+    let countdown = '';
+    if (w.releaseDate) {
+      const rel = new Date(w.releaseDate).getTime();
+      const diff = rel - now;
+      if (diff > 0) {
+        const days = Math.ceil(diff / 86400000);
+        countdown = `<div class="wl-countdown">${days} day${days !== 1 ? 's' : ''} to go</div>`;
+      } else {
+        countdown = '<div class="wl-countdown wl-released">Released!</div>';
+      }
+    }
+    return `<div class="wl-card" data-wl-id="${escapeAttr(w.id)}">
+      <div class="wl-cover">${w.cover ? `<img src="${escapeAttr(w.cover)}" onerror="this.style.display='none'" />` : '<div class="fallback">' + escapeHtml(w.name) + '</div>'}</div>
+      <div class="wl-info">
+        <div class="wl-name">${escapeHtml(w.name)}</div>
+        ${w.releaseDate ? `<div class="wl-date">${new Date(w.releaseDate).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</div>` : ''}
+        ${countdown}
+        ${w.notes ? `<div class="wl-notes">${escapeHtml(w.notes)}</div>` : ''}
+      </div>
+      <button class="wl-remove" data-wl-id="${escapeAttr(w.id)}" title="Remove">x</button>
+    </div>`;
+  }).join('');
+
+  el('wl-list').querySelectorAll('.wl-remove').forEach(btn => {
+    btn.onclick = async (e) => {
+      e.stopPropagation();
+      if (!confirm('Remove from wishlist?')) return;
+      await V.removeWishlist(btn.dataset.wlId);
+      await refresh();
+      toast('Removed from wishlist');
+    };
+  });
+}
+
+el('wl-add').onclick = () => {
+  el('wl-name').value = '';
+  el('wl-date').value = '';
+  el('wl-cover').value = '';
+  el('wl-notes').value = '';
+  el('modal-wl-add').classList.remove('hidden');
+};
+el('wl-add-cancel').onclick = () => el('modal-wl-add').classList.add('hidden');
+el('wl-add-confirm').onclick = async () => {
+  const name = el('wl-name').value.trim();
+  if (!name) return toast('Enter a game name');
+  await V.addWishlist({
+    name,
+    releaseDate: el('wl-date').value || null,
+    cover: el('wl-cover').value.trim() || '',
+    notes: el('wl-notes').value.trim(),
+  });
+  el('modal-wl-add').classList.add('hidden');
+  await refresh();
+  toast('Added to wishlist');
+};
+
+// ---------- HLTB ----------
+function renderHltb(g) {
+  const played = combinedMin(g) / 60;
+  const bars = [];
+  const entries = [
+    { label: 'Main Story', hrs: g.hltbMain },
+    { label: 'Main + Extras', hrs: g.hltbExtra },
+    { label: 'Completionist', hrs: g.hltbComplete },
+  ];
+  for (const e of entries) {
+    if (e.hrs > 0) {
+      const pct = Math.min(100, (played / e.hrs) * 100);
+      bars.push(`<div class="hltb-bar-row">
+        <span class="hltb-bar-label">${e.label}</span>
+        <span class="hltb-bar-track"><span class="hltb-bar-fill" style="width:${pct}%"></span></span>
+        <span class="hltb-bar-val">${played.toFixed(1)} / ${e.hrs}h (${Math.round(pct)}%)</span>
+      </div>`);
+    }
+  }
+  el('d-hltb-progress').innerHTML = bars.length ? bars.join('') : '';
+}
+
+el('d-hltb-save').onclick = async () => {
+  if (!selectedId) return;
+  await V.updateGame({
+    id: selectedId,
+    hltbMain: parseFloat(el('d-hltb-main').value) || 0,
+    hltbExtra: parseFloat(el('d-hltb-extra').value) || 0,
+    hltbComplete: parseFloat(el('d-hltb-complete').value) || 0,
+  });
+  toast('HLTB times saved');
+  await refresh();
+};
+
+el('d-hltb-search').onclick = () => {
+  const g = state.games.find(x => x.id === selectedId);
+  if (g) {
+    const q = encodeURIComponent(g.name);
+    window.open ? window.open(`https://howlongtobeat.com/?q=${q}`, '_blank') : toast('Cannot open browser');
+  }
+};
+
+// ---------- journal ----------
+function renderJournal(gameId) {
+  const entries = (state.journal || []).filter(j => j.gameId === gameId).sort((a, b) => (b.date || 0) - (a.date || 0));
+  el('d-journal-count').textContent = entries.length ? `(${entries.length})` : '';
+  if (!entries.length) {
+    el('d-journal').innerHTML = '<p class="hint">No journal entries yet. Entries are created automatically after each session.</p>';
+    return;
+  }
+  el('d-journal').innerHTML = entries.slice(0, 20).map(j => {
+    const d = new Date(j.date);
+    const isAuto = j.auto;
+    return `<div class="journal-entry ${isAuto ? 'journal-auto' : ''}">
+      <div class="journal-date">${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+      <div class="journal-text">${escapeHtml(j.text)}</div>
+      <button class="journal-del" data-jid="${escapeAttr(j.id)}" title="Delete">x</button>
+    </div>`;
+  }).join('');
+
+  el('d-journal').querySelectorAll('.journal-del').forEach(btn => {
+    btn.onclick = async () => {
+      await V.deleteJournal(btn.dataset.jid);
+      await refresh();
+      toast('Entry deleted');
+    };
+  });
+}
+
+el('d-journal-add').onclick = async () => {
+  const text = el('d-journal-text').value.trim();
+  if (!text || !selectedId) return toast('Write something first');
+  await V.addJournal({ gameId: selectedId, text, date: Date.now() });
+  el('d-journal-text').value = '';
+  await refresh();
+  toast('Journal entry added');
+};
+
+// ---------- year in review ----------
+let wrappedYear = new Date().getFullYear();
+
+async function renderWrapped(year) {
+  wrappedYear = year;
+  el('wrapped-year').textContent = year;
+  el('wrapped-content').innerHTML = '<p class="hint">Loading...</p>';
+  const data = await V.yearInReview(year);
+  if (!data || data.totalMinutes === 0) {
+    el('wrapped-content').innerHTML = '<p class="hint">No data for this year.</p>';
+    return;
+  }
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const maxM = Math.max(1, ...data.monthlyMinutes);
+  const monthBars = data.monthlyMinutes.map((m, i) => {
+    const h = Math.max(2, (m / maxM) * 100);
+    return `<div class="wrapped-bar-col"><div class="wrapped-bar" style="height:${h}%" title="${months[i]}: ${fmtPlaytime(m)}"></div><span class="wrapped-bar-label">${months[i]}</span></div>`;
+  }).join('');
+
+  el('wrapped-content').innerHTML = `
+    <div class="wrapped-stats">
+      <div class="stat-card"><span class="k">Total playtime</span><span class="v">${fmtPlaytime(data.totalMinutes)}</span></div>
+      <div class="stat-card"><span class="k">Most played</span><span class="v">${escapeHtml(data.topGame?.name || 'N/A')}</span></div>
+      <div class="stat-card"><span class="k">Games played</span><span class="v">${data.gamesPlayed}</span></div>
+      <div class="stat-card"><span class="k">Total sessions</span><span class="v">${data.totalSessions}</span></div>
+      <div class="stat-card"><span class="k">Longest session</span><span class="v">${fmtPlaytime(data.longestSessionMinutes)}</span></div>
+      <div class="stat-card"><span class="k">Most active month</span><span class="v">${escapeHtml(data.mostActiveMonth || 'N/A')}</span></div>
+      <div class="stat-card"><span class="k">Days played</span><span class="v">${data.daysPlayed}</span></div>
+    </div>
+    <div class="wrapped-chart">${monthBars}</div>`;
+}
+
+el('stats-wrapped').onclick = () => {
+  el('modal-wrapped').classList.remove('hidden');
+  renderWrapped(new Date().getFullYear());
+};
+el('wrapped-prev').onclick = () => renderWrapped(wrappedYear - 1);
+el('wrapped-next').onclick = () => renderWrapped(wrappedYear + 1);
+el('wrapped-close').onclick = () => el('modal-wrapped').classList.add('hidden');
+
+// ---------- custom collections (settings) ----------
+function renderSettingCollections() {
+  const colls = state.settings.customCollections || [];
+  el('set-collections').innerHTML = colls.map(c =>
+    `<div class="custom-coll-item"><span>${escapeHtml(c)}</span><button class="coll-remove" data-coll="${escapeAttr(c)}">x</button></div>`
+  ).join('') || '<p class="hint">No custom collections yet.</p>';
+  el('set-collections').querySelectorAll('.coll-remove').forEach(btn => {
+    btn.onclick = () => {
+      state.settings.customCollections = (state.settings.customCollections || []).filter(c => c !== btn.dataset.coll);
+      renderSettingCollections();
+    };
+  });
+}
+el('set-coll-add').onclick = () => {
+  const name = el('set-coll-input').value.trim();
+  if (!name) return;
+  if (!state.settings.customCollections) state.settings.customCollections = [];
+  if (state.settings.customCollections.includes(name)) return toast('Collection already exists');
+  const reserved = ['playing', 'backlog', 'completed', 'dropped'];
+  if (reserved.includes(name.toLowerCase())) return toast('That name is reserved');
+  state.settings.customCollections.push(name);
+  el('set-coll-input').value = '';
+  renderSettingCollections();
+};
+
+// ---------- shelves (settings + home) ----------
+function renderSettingShelves() {
+  const shelves = state.settings.shelves || [];
+  el('set-shelves').innerHTML = shelves.map((s, i) =>
+    `<div class="shelf-setting-item"><span>${escapeHtml(s.name)} <small class="muted">(${s.filterType}: ${escapeHtml(s.filterValue)})</small></span><button class="shelf-remove" data-si="${i}">x</button></div>`
+  ).join('') || '<p class="hint">No shelves yet.</p>';
+  el('set-shelves').querySelectorAll('.shelf-remove').forEach(btn => {
+    btn.onclick = () => {
+      state.settings.shelves.splice(parseInt(btn.dataset.si), 1);
+      renderSettingShelves();
+    };
+  });
+}
+
+el('set-shelf-add').onclick = () => {
+  el('shelf-name').value = '';
+  el('shelf-filter-value').value = '';
+  el('modal-shelf').classList.remove('hidden');
+};
+el('shelf-cancel').onclick = () => el('modal-shelf').classList.add('hidden');
+el('shelf-confirm').onclick = () => {
+  const name = el('shelf-name').value.trim();
+  const filterValue = el('shelf-filter-value').value.trim();
+  if (!name || !filterValue) return toast('Fill in all fields');
+  if (!state.settings.shelves) state.settings.shelves = [];
+  state.settings.shelves.push({
+    name,
+    filterType: el('shelf-filter-type').value,
+    filterValue,
+  });
+  el('modal-shelf').classList.add('hidden');
+  renderSettingShelves();
+};
+
+function renderShelves() {
+  const container = el('home-shelves');
+  const shelves = state.settings.shelves || [];
+  if (!shelves.length) { container.innerHTML = ''; return; }
+  container.innerHTML = shelves.map(s => {
+    const games = state.games.filter(g => {
+      if (s.filterType === 'collection') return g.collection === s.filterValue;
+      if (s.filterType === 'tag') return (g.tags || []).includes(s.filterValue);
+      return false;
+    });
+    if (!games.length) return '';
+    return `<div class="home-row shelf-row">
+      <h3>${escapeHtml(s.name)} <span class="muted-count">(${games.length})</span></h3>
+      <div class="rail shelf-rail">${games.slice(0, 12).map(g => `
+        <div class="rail-item card" data-id="${g.id}">
+          ${runningIds().includes(g.id) ? '<span class="running-dot"></span>' : ''}
+          ${coverHtml(g)}<div class="cap">${escapeHtml(g.name)}</div>
+        </div>`).join('')}</div>
+    </div>`;
+  }).join('');
+  wireCards(container);
 }
 
 switchView('home');
