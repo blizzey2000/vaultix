@@ -386,6 +386,15 @@ function finalizeSession(gameId) {
     totalMinutes: g ? (g.playtimeMinutes || 0) + (g.steamPlaytimeMinutes || 0) : 0,
     lastPlayed: g ? g.lastPlayed : null,
   });
+  if (g && minutes >= 1) {
+    store.addJournal({
+      id: uid(),
+      gameId,
+      text: `Played for ${minutes >= 60 ? (minutes / 60).toFixed(1) + ' hours' : minutes + ' minutes'}.`,
+      createdAt: Date.now(),
+      auto: true,
+    });
+  }
   checkAchievements();
   if (store.settings.minimizeOnPlay && win && !win.isDestroyed()) showWindow();
 }
@@ -419,6 +428,8 @@ ipcMain.handle('get-state', () => ({
   settings: store.settings,
   sessions: store.sessions,
   running: [...sessions.entries()].map(([id, s]) => ({ id, startedAt: s.startedAt })),
+  wishlist: store.wishlist,
+  journal: store.journal,
 }));
 
 ipcMain.handle('save-settings', (e, settings) => {
@@ -973,6 +984,108 @@ ipcMain.handle('youtube-search', async (e, query) => {
 
 ipcMain.handle('fetch-game-metadata', async (e, gameName) => {
   return fetchGameMetadata(gameName, store.settings, coversDir);
+});
+
+// ---------- random game picker ----------
+ipcMain.handle('random-game', (e, opts) => {
+  let pool = store.games;
+  if (opts && opts.backlogOnly) pool = pool.filter((g) => g.collection === 'backlog');
+  if (opts && opts.unplayed) pool = pool.filter((g) => !g.lastPlayed);
+  if (!pool.length) pool = store.games;
+  if (!pool.length) return null;
+  return pool[Math.floor(Math.random() * pool.length)];
+});
+
+// ---------- wishlist ----------
+ipcMain.handle('add-wishlist', (e, item) => {
+  const wl = store.wishlist;
+  const entry = { id: uid(), name: item.name || '', releaseDate: item.releaseDate || null, cover: item.cover || '', notes: item.notes || '', addedAt: Date.now() };
+  wl.push(entry);
+  store.wishlist = wl;
+  return entry;
+});
+ipcMain.handle('update-wishlist', (e, patch) => {
+  const wl = store.wishlist;
+  const item = wl.find((x) => x.id === patch.id);
+  if (!item) return null;
+  Object.assign(item, patch);
+  store.wishlist = wl;
+  return item;
+});
+ipcMain.handle('remove-wishlist', (e, id) => {
+  store.wishlist = store.wishlist.filter((x) => x.id !== id);
+  return true;
+});
+
+// ---------- journal ----------
+ipcMain.handle('add-journal', (e, entry) => {
+  const rec = { id: uid(), gameId: entry.gameId || null, text: entry.text || '', createdAt: Date.now(), auto: false };
+  store.addJournal(rec);
+  return rec;
+});
+ipcMain.handle('update-journal', (e, patch) => {
+  const j = store.journal;
+  const rec = j.find((x) => x.id === patch.id);
+  if (!rec) return null;
+  if (patch.text !== undefined) rec.text = patch.text;
+  store.journal = j;
+  return rec;
+});
+ipcMain.handle('delete-journal', (e, id) => {
+  store.journal = store.journal.filter((x) => x.id !== id);
+  return true;
+});
+
+// ---------- year in review ----------
+ipcMain.handle('year-in-review', (e, year) => {
+  const y = year || new Date().getFullYear();
+  const startTs = new Date(y, 0, 1).getTime();
+  const endTs = new Date(y + 1, 0, 1).getTime();
+  const ySessions = store.sessions.filter((s) => s.start >= startTs && s.start < endTs);
+  const totalMinutes = ySessions.reduce((a, s) => a + (s.minutes || 0), 0);
+  const gameMinutes = {};
+  const monthMinutes = new Array(12).fill(0);
+  for (const s of ySessions) {
+    gameMinutes[s.gameId] = (gameMinutes[s.gameId] || 0) + (s.minutes || 0);
+    monthMinutes[new Date(s.start).getMonth()] += s.minutes || 0;
+  }
+  const gamesPlayed = Object.keys(gameMinutes).length;
+  let topGameId = null, topGameMin = 0;
+  for (const [gid, m] of Object.entries(gameMinutes)) {
+    if (m > topGameMin) { topGameId = gid; topGameMin = m; }
+  }
+  const topGame = topGameId ? store.games.find((g) => g.id === topGameId) : null;
+  const longestSession = ySessions.length ? Math.max(...ySessions.map((s) => s.minutes || 0)) : 0;
+  const bestMonthIdx = monthMinutes.indexOf(Math.max(...monthMinutes));
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const daySet = new Set();
+  for (const s of ySessions) {
+    const d = new Date(s.start);
+    daySet.add(`${d.getMonth()}-${d.getDate()}`);
+  }
+  return {
+    year: y,
+    totalMinutes,
+    totalSessions: ySessions.length,
+    gamesPlayed,
+    topGame: topGame ? topGame.name : null,
+    topGameMinutes: topGameMin,
+    longestSession,
+    bestMonth: monthNames[bestMonthIdx],
+    bestMonthMinutes: monthMinutes[bestMonthIdx],
+    monthMinutes,
+    daysPlayed: daySet.size,
+  };
+});
+
+// ---------- time-of-day distribution ----------
+ipcMain.handle('time-distribution', () => {
+  const hours = new Array(24).fill(0);
+  for (const s of store.sessions) {
+    const h = new Date(s.start).getHours();
+    hours[h] += s.minutes || 0;
+  }
+  return hours;
 });
 
 // ---------- streak / stats ----------
